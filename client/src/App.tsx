@@ -1,36 +1,26 @@
 import { useState } from "react";
 import { checkSystem, Category } from "./api.js";
 
-// UI states you must handle for Issue 4: idle, loading, success, error.
+// UI states for Issue 4: idle, loading, success, error.
 type UiState = "idle" | "loading" | "success" | "error";
 
 export default function App() {
   const [state, setState] = useState<UiState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  void categories;
-  void setCategories;
-  void checkSystem;
 
   async function handleCheck() {
     setState("loading");
     setErrorMessage(null);
 
     try {
-      // Issue 2: Real API call to the health check endpoint
-      const res = await fetch("/api/health");
-      if (!res.ok) {
-        throw new Error(`Server returned HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      if (data.status === "ok") {
-        setState("success");
-      } else {
-        throw new Error("Invalid health check response");
-      }
+      // Issue 4: Call checkSystem() which fetches both health and categories
+      const result = await checkSystem();
+      setCategories(result.categories);
+      setState("success");
     } catch (_err) {
       setState("error");
-      setErrorMessage("Unable to connect to TokTickIT API");
+      setErrorMessage("TokTickIT API is currently unavailable");
     }
   }
 
@@ -50,20 +40,29 @@ export default function App() {
 
       {/* Loading state */}
       {state === "loading" && (
-        <div className="mt-3 text-secondary">Checking system status…</div>
+        <div className="mt-3 text-secondary">Checking system health…</div>
       )}
 
-      {/* Issue 2: Success state (Online) */}
+      {/* Success state: Online + Dynamic Categories */}
       {state === "success" && (
         <div className="mt-3">
-          <p className="mb-0">
+          <p className="mb-2">
             <strong>System Status: </strong>
             <span className="text-success fw-bold">Online</span>
           </p>
+
+          <h2 className="h5 mt-3 mb-2">Available Categories</h2>
+          <ul className="list-group">
+            {categories.map((cat) => (
+              <li key={cat.id} className="list-group-item">
+                {cat.name}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
-      {/* Issue 2: Error state (Offline + Useful message) */}
+      {/* Error state: Offline */}
       {state === "error" && (
         <div className="mt-3">
           <p className="mb-1">
@@ -75,8 +74,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* TODO(Issue 4): render loading / success (Online + categories) / error (Offline) states. */}
     </div>
   );
 }
