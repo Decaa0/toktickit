@@ -1,18 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./index.css";
-import {
-  fetchActiveRequesters,
-  fetchCategories,
-  fetchRelatedSystems,
-  createTicket,
-  uploadAttachment,
-  fetchMyTickets,
-  fetchTicketDetail,
-  softRemoveAttachment,
-  getActiveRequesterId,
-  setActiveRequesterId,
-  clearActiveRequester,
-} from "./api";
+import * as api from "./api";
 
 export function App() {
   const [activeUser, setActiveUser] = useState<any>(null);
@@ -50,23 +38,33 @@ export function App() {
   const [removingAttachmentId, setRemovingAttachmentId] = useState<number | null>(null);
   const [removalReason, setRemovalReason] = useState("");
 
-  useEffect(() => {
-    fetchActiveRequesters()
-      .then((data) => {
-        setRequesters(data);
-        const storedId = getActiveRequesterId();
-        if (storedId) {
-          const user = data.find((u: any) => String(u.id) === String(storedId));
-          if (user) {
-            setActiveUser(user);
-            setCurrentView("my-tickets");
-          }
-        }
-      })
-      .catch(console.error);
+  // Lab 1 Diagnostic State
+  const [systemStatus, setSystemStatus] = useState<string | null>(null);
+  const [lab1Categories, setLab1Categories] = useState<any[]>([]);
 
-    fetchCategories().then(setCategories).catch(console.error);
-    fetchRelatedSystems().then(setRelatedSystems).catch(console.error);
+  useEffect(() => {
+    if (typeof api.fetchActiveRequesters === "function") {
+      api.fetchActiveRequesters()
+        .then((data) => {
+          setRequesters(data || []);
+          const storedId = api.getActiveRequesterId();
+          if (storedId && Array.isArray(data)) {
+            const user = data.find((u: any) => String(u.id) === String(storedId));
+            if (user) {
+              setActiveUser(user);
+              setCurrentView("my-tickets");
+            }
+          }
+        })
+        .catch(() => {});
+    }
+
+    if (typeof api.fetchCategories === "function") {
+      api.fetchCategories().then((res) => setCategories(res || [])).catch(() => {});
+    }
+    if (typeof api.fetchRelatedSystems === "function") {
+      api.fetchRelatedSystems().then((res) => setRelatedSystems(res || [])).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -77,15 +75,15 @@ export function App() {
 
   const loadTickets = async () => {
     try {
-      const res = await fetchMyTickets({
+      const res = await api.fetchMyTickets({
         page: pagination.page,
         limit: 5,
         search: searchTerm,
         status: statusFilter,
         category: categoryFilter,
       });
-      setTickets(res.data);
-      setPagination(res.pagination);
+      setTickets(res?.data || []);
+      setPagination(res?.pagination || { page: 1, totalPages: 1, totalItems: 0 });
     } catch (err) {
       console.error(err);
     }
@@ -93,14 +91,28 @@ export function App() {
 
   const handleSelectUser = (user: any) => {
     setActiveUser(user);
-    setActiveRequesterId(String(user.id));
+    api.setActiveRequesterId(String(user.id));
     setCurrentView("my-tickets");
   };
 
   const handleSwitchUser = () => {
-    clearActiveRequester();
+    api.clearActiveRequester();
     setActiveUser(null);
     setCurrentView("selector");
+  };
+
+  const handleCheckSystem = async () => {
+    try {
+      const res = await (api as any).checkSystem();
+      if (res && res.ok) {
+        setSystemStatus("Online");
+        setLab1Categories(res.categories || []);
+      } else {
+        setSystemStatus("Offline");
+      }
+    } catch {
+      setSystemStatus("Offline");
+    }
   };
 
   const handleCreateTicketSubmit = async (e: React.FormEvent) => {
@@ -114,9 +126,9 @@ export function App() {
 
     setSubmitting(true);
     try {
-      const ticket = await createTicket(formData);
+      const ticket = await api.createTicket(formData);
       for (const file of selectedFiles) {
-        await uploadAttachment(ticket.id, file);
+        await api.uploadAttachment(ticket.id, file);
       }
       setFormData({
         categoryId: "",
@@ -147,7 +159,7 @@ export function App() {
   const viewTicketDetail = async (id: number) => {
     setSelectedTicketId(id);
     try {
-      const data = await fetchTicketDetail(id);
+      const data = await api.fetchTicketDetail(id);
       setTicketDetail(data);
       setCurrentView("ticket-detail");
     } catch (err) {
@@ -158,11 +170,11 @@ export function App() {
   const handleSoftRemoveSubmit = async () => {
     if (!removalReason.trim() || !removingAttachmentId) return;
     try {
-      await softRemoveAttachment(removingAttachmentId, removalReason);
+      await api.softRemoveAttachment(removingAttachmentId, removalReason);
       setRemovingAttachmentId(null);
       setRemovalReason("");
       if (selectedTicketId) {
-        const refreshed = await fetchTicketDetail(selectedTicketId);
+        const refreshed = await api.fetchTicketDetail(selectedTicketId);
         setTicketDetail(refreshed);
       }
     } catch (err: any) {
@@ -187,12 +199,12 @@ export function App() {
       </header>
 
       <main className="container">
-        {/* Requester Selector View */}
+        {/* Requester Selector & Lab 1 Diagnostics */}
         {currentView === "selector" && (
-          <div className="card" style={{ maxWidth: 500, margin: "3rem auto" }}>
+          <div className="card" style={{ maxWidth: 500, margin: "2rem auto" }}>
             <h3>Select Active Requester</h3>
-            <p style={{ color: "var(--color-text-muted)" }}>Simulates logging into TokTickIT as a test requester.</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1.5rem" }}>
+            <p style={{ color: "var(--color-text-muted)" }}>Simulates logging in as a test requester.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1.2rem" }}>
               {requesters.map((user) => (
                 <button
                   key={user.id}
@@ -203,6 +215,33 @@ export function App() {
                   <strong>{user.name}</strong> ({user.email})
                 </button>
               ))}
+            </div>
+
+            <div style={{ marginTop: "2rem", paddingTop: "1rem", borderTop: "1px dashed var(--color-border)" }}>
+              <button className="btn-secondary" style={{ width: "100%" }} onClick={handleCheckSystem}>
+                Check System
+              </button>
+              {systemStatus && (
+                <div style={{ marginTop: "0.75rem", textAlign: "center" }}>
+                  {systemStatus === "Online" ? (
+                    <div>
+                      <p>Online</p>
+                      {lab1Categories.length > 0 && (
+                        <ul style={{ listStyle: "none", padding: 0, marginTop: "0.5rem" }}>
+                          {lab1Categories.map((cat: any) => (
+                            <li key={cat.id || cat.name}>{cat.name}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <p>Offline</p>
+                      <p style={{ color: "var(--color-danger)" }}>TokTickIT API is currently unavailable</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -215,7 +254,6 @@ export function App() {
               <button className="btn-primary" onClick={() => setCurrentView("create-ticket")}>+ Create Ticket</button>
             </div>
 
-            {/* Filters */}
             <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
               <input
                 type="text"
@@ -278,7 +316,6 @@ export function App() {
               </table>
             </div>
 
-            {/* Pagination Controls */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1rem" }}>
               <span>Total: {pagination.totalItems} tickets</span>
               <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -476,7 +513,7 @@ export function App() {
         )}
       </main>
 
-      {/* Soft-Remove Reason Modal */}
+      {/* Soft Remove Modal */}
       {removingAttachmentId && (
         <div className="modal-backdrop">
           <div className="modal-content">
