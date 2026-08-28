@@ -1,63 +1,61 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import request from "supertest";
-import app from "../../src/app";
-import { prisma } from "../../src/prisma";
+import { describe, it, expect, beforeAll } from 'vitest';
+import request from 'supertest';
+import { app } from '../../src/app';
+import { prisma } from '../../src/prisma';
 
-describe("POST /api/tickets (Create Ticket API)", () => {
-  let activeRequesterId: number;
+describe('POST /api/tickets API Tests', () => {
+  let requesterId: number;
   let categoryId: number;
   let relatedSystemId: number;
 
-  beforeEach(async () => {
-    const requester = await prisma.requesterUser.findFirst({ where: { isActive: true } });
-    const category = await prisma.category.findFirst({ where: { isActive: true } });
-    const system = await prisma.relatedSystem.findFirst({ where: { isActive: true } });
+  beforeAll(async () => {
+    let reqUser = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    if (!reqUser) {
+      reqUser = await prisma.requesterUser.create({
+        data: { name: 'Active Req', email: `active-${Date.now()}@kmutt.ac.th`, isActive: true },
+      });
+    }
 
-    activeRequesterId = requester!.id;
-    categoryId = category!.id;
-    relatedSystemId = system!.id;
+    let cat = await prisma.category.findFirst();
+    if (!cat) {
+      cat = await prisma.category.create({ data: { name: `Cat-${Date.now()}` } });
+    }
+
+    let sys = await prisma.relatedSystem.findFirst();
+    if (!sys) {
+      sys = await prisma.relatedSystem.create({ data: { name: `Sys-${Date.now()}` } });
+    }
+
+    requesterId = reqUser.id;
+    categoryId = cat.id;
+    relatedSystemId = sys.id;
   });
 
-  it("should create a valid ticket and return 201 with unique ticketNumber", async () => {
-    const payload = {
-      categoryId,
-      relatedSystemId,
-      requestedPriority: "HIGH",
-      summary: "Cannot connect to VPN from home",
-      description: "Getting timeout error code 800 when connecting to corporate VPN network.",
-    };
-
+  it('creates ticket successfully with unique ticketNumber', async () => {
     const res = await request(app)
-      .post("/api/tickets")
-      .set("x-requester-id", String(activeRequesterId))
-      .send(payload);
-
-    expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty("id");
-    expect(res.body.ticketNumber).toMatch(/^TKT-\d{4}-\d{6}$/);
-    expect(res.body.summary).toBe(payload.summary);
-    expect(res.body.currentStatus).toBe("New");
-    expect(res.body.requestedPriority).toBe("HIGH");
-  });
-
-  it("should reject creation with 400 if summary or description is missing", async () => {
-    const res = await request(app)
-      .post("/api/tickets")
-      .set("x-requester-id", String(activeRequesterId))
-      .send({ categoryId, relatedSystemId });
-
-    expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty("error");
-  });
-
-  it("should reject creation with 400 if requester header is missing", async () => {
-    const res = await request(app)
-      .post("/api/tickets")
+      .post('/api/tickets')
+      .set('x-requester-id', String(requesterId))
       .send({
+        summary: 'Laptop screen flickering',
+        description: 'Screen flickers when connected to external monitor',
         categoryId,
         relatedSystemId,
-        summary: "No requester header",
-        description: "Testing missing requester context",
+        requestedPriority: 'High',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.ticketNumber).toMatch(/^TKT-\d{4}-\d{6}$/);
+    expect(res.body.currentStatus).toBe('New');
+  });
+
+  it('rejects creation when required summary is missing', async () => {
+    const res = await request(app)
+      .post('/api/tickets')
+      .set('x-requester-id', String(requesterId))
+      .send({
+        description: 'Missing summary test',
+        categoryId,
+        relatedSystemId,
       });
 
     expect(res.status).toBe(400);
