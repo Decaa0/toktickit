@@ -7,72 +7,25 @@ generator client {
   provider = "prisma-client-js"
 }
 
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
 model RequesterUser {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tickets   Ticket[]
 }
 
 model Category {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  tickets   Ticket[]
+  id             Int             @id @default(autoincrement())
+  name           String          @unique
+  createdAt      DateTime        @default(now())
+  relatedSystems RelatedSystem[]
 }
 
 model RelatedSystem {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  tickets   Ticket[]
-}
-
-model Ticket {
-  id                Int           @id @default(autoincrement())
-  ticketNumber      String        @unique
-  summary           String
-  description       String
-  requestedPriority Priority      @default(MEDIUM)
-  itPriority        Priority      @default(MEDIUM)
-  currentStatus     String        @default("New")
-  requesterId       Int
-  requester         RequesterUser @relation(fields: [requesterId], references: [id])
-  categoryId        Int
-  category          Category      @relation(fields: [categoryId], references: [id])
-  relatedSystemId   Int
-  relatedSystem     RelatedSystem @relation(fields: [relatedSystemId], references: [id])
-  attachments       Attachment[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-
-  @@index([requesterId])
-  @@index([currentStatus])
-  @@index([categoryId])
-}
-
-model Attachment {
-  id            Int       @id @default(autoincrement())
-  ticketId      Int
-  ticket        Ticket    @relation(fields: [ticketId], references: [id])
-  fileName      String
-  fileSize      Int
-  mimeType      String
-  storagePath   String
-  isRemoved     Boolean   @default(false)
-  removalReason String?
-  removedAt     DateTime?
-  createdAt     DateTime  @default(now())
-
-  @@index([ticketId])
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime @default(now())
 }
