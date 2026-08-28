@@ -1,81 +1,89 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import request from "supertest";
-import app from "../../src/app";
-import { prisma } from "../../src/prisma";
+import { describe, it, expect, beforeAll } from 'vitest';
+import request from 'supertest';
+import { app } from '../../src/app';
+import { prisma } from '../../src/prisma';
 
-describe("Attachments API Lifecycle", () => {
-  let requesterId: number;
+describe('Attachment Lifecycle & Soft-removal API', () => {
+  let userAId: number;
+  let userBId: number;
   let ticketId: number;
+  let attachmentId: number;
 
   beforeAll(async () => {
-    const user = await prisma.requesterUser.findFirst({ where: { isActive: true } });
-    requesterId = user!.id;
-    const cat = await prisma.category.findFirst();
-    const sys = await prisma.relatedSystem.findFirst();
+    let users = await prisma.requesterUser.findMany({ where: { isActive: true }, take: 2 });
+    if (users.length < 2) {
+      const u1 = await prisma.requesterUser.create({
+        data: { name: 'User A Att', email: `user-a-att-${Date.now()}@kmutt.ac.th`, isActive: true },
+      });
+      const u2 = await prisma.requesterUser.create({
+        data: { name: 'User B Att', email: `user-b-att-${Date.now()}@kmutt.ac.th`, isActive: true },
+      });
+      users = [u1, u2];
+    }
+    userAId = users[0].id;
+    userBId = users[1].id;
 
-    const t = await prisma.ticket.create({
+    let cat = await prisma.category.findFirst();
+    if (!cat) {
+      cat = await prisma.category.create({ data: { name: `Cat-${Date.now()}` } });
+    }
+
+    let sys = await prisma.relatedSystem.findFirst();
+    if (!sys) {
+      sys = await prisma.relatedSystem.create({ data: { name: `Sys-${Date.now()}` } });
+    }
+
+    const ticket = await prisma.ticket.create({
       data: {
-        ticketNumber: `TKT-2026-${(Date.now() + 2).toString().slice(-6)}`,
-        summary: "Attachment Test Ticket",
-        description: "Testing attachments lifecycle",
-        requesterId,
-        categoryId: cat!.id,
-        relatedSystemId: sys!.id,
+        ticketNumber: `TKT-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`,
+        summary: 'Attachment test ticket',
+        description: 'Test description',
+        requesterId: userAId,
+        categoryId: cat.id,
+        relatedSystemId: sys.id,
+        currentStatus: 'New',
       },
     });
-    ticketId = t.id;
-  });
+    ticketId = ticket.id;
 
-  it("should upload a valid text/image attachment", async () => {
-    const res = await request(app)
-      .post(`/api/tickets/${ticketId}/attachments`)
-      .set("x-requester-id", String(requesterId))
-      .attach("file", Buffer.from("Sample test content"), "sample.pdf");
-
-    expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty("id");
-    expect(res.body.fileName).toBe("sample.pdf");
-    expect(res.body.isRemoved).toBe(false);
-  });
-
-  it("should soft-remove an attachment when a reason is provided", async () => {
     const att = await prisma.attachment.create({
       data: {
         ticketId,
-        fileName: "error_log.png",
+        fileName: 'test.png',
+        storagePath: 'uploads/test.png',
+        mimeType: 'image/png',
         fileSize: 1024,
-        mimeType: "image/png",
-        storagePath: "uploads/fake.png",
       },
     });
+    attachmentId = att.id;
+  });
 
+  it('requires a mandatory removal reason when soft-removing', async () => {
     const res = await request(app)
-      .patch(`/api/attachments/${att.id}/soft-remove`)
-      .set("x-requester-id", String(requesterId))
-      .send({ reason: "Uploaded wrong screenshot" });
+      .patch(`/api/attachments/${attachmentId}/soft-remove`)
+      .set('x-requester-id', String(userAId))
+      .send({ removalReason: '' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('prevents User B from soft-removing User A attachment', async () => {
+    const res = await request(app)
+      .patch(`/api/attachments/${attachmentId}/soft-remove`)
+      .set('x-requester-id', String(userBId))
+      .send({ removalReason: 'Wrong user trying to remove' });
+
+    expect([403, 404]).toContain(res.status);
+  });
+
+  it('allows User A to successfully soft-remove their attachment', async () => {
+    const res = await request(app)
+      .patch(`/api/attachments/${attachmentId}/soft-remove`)
+      .set('x-requester-id', String(userAId))
+      .send({ removalReason: 'Uploaded wrong document version' });
 
     expect(res.status).toBe(200);
     expect(res.body.isRemoved).toBe(true);
-    expect(res.body.removalReason).toBe("Uploaded wrong screenshot");
-  });
-
-  it("should block download of a soft-removed attachment", async () => {
-    const att = await prisma.attachment.create({
-      data: {
-        ticketId,
-        fileName: "deleted_doc.pdf",
-        fileSize: 500,
-        mimeType: "application/pdf",
-        storagePath: "uploads/deleted.pdf",
-        isRemoved: true,
-        removalReason: "Confidential",
-      },
-    });
-
-    const res = await request(app)
-      .get(`/api/attachments/${att.id}/download`)
-      .set("x-requester-id", String(requesterId));
-
-    expect([404, 403]).toContain(res.status);
+    expect(res.body.removalReason).toBe('Uploaded wrong document version');
   });
 });

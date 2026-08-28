@@ -9,12 +9,26 @@ describe('POST /api/tickets API Tests', () => {
   let relatedSystemId: number;
 
   beforeAll(async () => {
-    const reqUser = await prisma.requesterUser.findFirst({ where: { isActive: true } });
-    const cat = await prisma.category.findFirst();
-    const sys = await prisma.relatedSystem.findFirst();
-    requesterId = reqUser!.id;
-    categoryId = cat!.id;
-    relatedSystemId = sys!.id;
+    let reqUser = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    if (!reqUser) {
+      reqUser = await prisma.requesterUser.create({
+        data: { name: 'Active Req', email: `active-${Date.now()}@kmutt.ac.th`, isActive: true },
+      });
+    }
+
+    let cat = await prisma.category.findFirst();
+    if (!cat) {
+      cat = await prisma.category.create({ data: { name: `Cat-${Date.now()}` } });
+    }
+
+    let sys = await prisma.relatedSystem.findFirst();
+    if (!sys) {
+      sys = await prisma.relatedSystem.create({ data: { name: `Sys-${Date.now()}` } });
+    }
+
+    requesterId = reqUser.id;
+    categoryId = cat.id;
+    relatedSystemId = sys.id;
   });
 
   it('creates ticket successfully with unique ticketNumber', async () => {
