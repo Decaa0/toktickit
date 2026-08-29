@@ -1,542 +1,640 @@
-import React, { useState, useEffect } from "react";
-import "./index.css";
-import * as api from "./api";
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  RequesterUser,
+  Category,
+  RelatedSystem,
+  Ticket,
+  fetchActiveRequesters,
+  fetchCategories,
+  fetchRelatedSystems,
+  createTicket,
+  uploadAttachments,
+  fetchMyTickets,
+  fetchTicketDetail,
+  softRemoveAttachment,
+} from './api';
 
-export function App() {
-  const [activeUser, setActiveUser] = useState<any>(null);
-  const [requesters, setRequesters] = useState<any[]>([]);
-  const [currentView, setCurrentView] = useState<"selector" | "my-tickets" | "create-ticket" | "ticket-detail">("selector");
+export const App: React.FC = () => {
+  // -------------------------------------------------------------
+  // Requester context state
+  // -------------------------------------------------------------
+  const [currentRequester, setCurrentRequester] = useState<RequesterUser | null>(() => {
+    const saved = localStorage.getItem('toktickit_requester');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [activeRequesters, setActiveRequesters] = useState<RequesterUser[]>([]);
+  const [isSelectingRequester, setIsSelectingRequester] = useState<boolean>(!currentRequester);
+
+  // -------------------------------------------------------------
+  // Navigation & View state
+  // -------------------------------------------------------------
+  const [activeTab, setActiveTab] = useState<'my-tickets' | 'create-ticket'>('my-tickets');
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   // Reference data
-  const [categories, setCategories] = useState<any[]>([]);
-  const [relatedSystems, setRelatedSystems] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [relatedSystems, setRelatedSystems] = useState<RelatedSystem[]>([]);
 
-  // Tickets List State
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [pagination, setPagination] = useState<any>({ page: 1, totalPages: 1, totalItems: 0 });
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  // -------------------------------------------------------------
+  // Create Ticket Form state
+  // -------------------------------------------------------------
+  const [summary, setSummary] = useState('');
+  const [description, setDescription] = useState('');
+  const [categoryId, setCategoryId] = useState<number | ''>('');
+  const [relatedSystemId, setRelatedSystemId] = useState<number | ''>('');
+  const [priority, setPriority] = useState('Medium');
+  const [files, setFiles] = useState<File[]>([]);
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createSuccessMsg, setCreateSuccessMsg] = useState<string | null>(null);
+  const [createErrorMsg, setCreateErrorMsg] = useState<string | null>(null);
 
-  // Ticket Detail State
-  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
-  const [ticketDetail, setTicketDetail] = useState<any>(null);
+  // -------------------------------------------------------------
+  // My Tickets List state
+  // -------------------------------------------------------------
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [search, setSearch] = useState('');
+  const [filterCat, setFilterCat] = useState<number | ''>('');
+  const [filterPriority, setFilterPriority] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalTickets, setTotalTickets] = useState(0);
+  const [isLoadingTickets, setIsLoadingTickets] = useState(false);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    categoryId: "",
-    relatedSystemId: "",
-    requestedPriority: "MEDIUM",
-    summary: "",
-    description: "",
-  });
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [formError, setFormError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  // -------------------------------------------------------------
+  // Ticket Detail & Attachment state
+  // -------------------------------------------------------------
+  const [detailTicket, setDetailTicket] = useState<Ticket | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [softRemoveId, setSoftRemoveId] = useState<number | null>(null);
+  const [removalReason, setRemovalReason] = useState('');
+  const [softRemoveError, setSoftRemoveError] = useState<string | null>(null);
 
-  // Soft Remove Modal
-  const [removingAttachmentId, setRemovingAttachmentId] = useState<number | null>(null);
-  const [removalReason, setRemovalReason] = useState("");
-
-  // Lab 1 Diagnostic State
-  const [systemStatus, setSystemStatus] = useState<string | null>(null);
-  const [lab1Categories, setLab1Categories] = useState<any[]>([]);
-
+  // Initial load: active requesters, categories, related systems
   useEffect(() => {
-    if (typeof api.fetchActiveRequesters === "function") {
-      api.fetchActiveRequesters()
-        .then((data) => {
-          setRequesters(data || []);
-          const storedId = api.getActiveRequesterId();
-          if (storedId && Array.isArray(data)) {
-            const user = data.find((u: any) => String(u.id) === String(storedId));
-            if (user) {
-              setActiveUser(user);
-              setCurrentView("my-tickets");
-            }
-          }
-        })
-        .catch(() => {});
-    }
-
-    if (typeof api.fetchCategories === "function") {
-      api.fetchCategories().then((res) => setCategories(res || [])).catch(() => {});
-    }
-    if (typeof api.fetchRelatedSystems === "function") {
-      api.fetchRelatedSystems().then((res) => setRelatedSystems(res || [])).catch(() => {});
-    }
+    fetchActiveRequesters().then(setActiveRequesters).catch(() => {});
+    fetchCategories().then(setCategories).catch(() => {});
+    fetchRelatedSystems().then(setRelatedSystems).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (activeUser && currentView === "my-tickets") {
-      loadTickets();
-    }
-  }, [activeUser, currentView, pagination.page, searchTerm, statusFilter, categoryFilter]);
+  const handleSelectRequester = (user: RequesterUser) => {
+    setCurrentRequester(user);
+    localStorage.setItem('toktickit_requester', JSON.stringify(user));
+    setIsSelectingRequester(false);
+    setSelectedTicketId(null);
+    setPage(1);
+  };
 
-  const loadTickets = async () => {
+  // Load My Tickets
+  const loadTickets = useCallback(async () => {
+    if (!currentRequester || isSelectingRequester) return;
+    setIsLoadingTickets(true);
     try {
-      const res = await api.fetchMyTickets({
-        page: pagination.page,
-        limit: 5,
-        search: searchTerm,
-        status: statusFilter,
-        category: categoryFilter,
+      const res = await fetchMyTickets(currentRequester.id, {
+        search: search.trim() || undefined,
+        categoryId: filterCat || undefined,
+        priority: filterPriority || undefined,
+        status: filterStatus || undefined,
+        page,
+        pageSize: 8,
       });
-      setTickets(res?.data || []);
-      setPagination(res?.pagination || { page: 1, totalPages: 1, totalItems: 0 });
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleSelectUser = (user: any) => {
-    setActiveUser(user);
-    api.setActiveRequesterId(String(user.id));
-    setCurrentView("my-tickets");
-  };
-
-  const handleSwitchUser = () => {
-    api.clearActiveRequester();
-    setActiveUser(null);
-    setCurrentView("selector");
-  };
-
-  const handleCheckSystem = async () => {
-    try {
-      const res = await (api as any).checkSystem();
-      if (res && res.ok) {
-        setSystemStatus("Online");
-        setLab1Categories(res.categories || []);
-      } else {
-        setSystemStatus("Offline");
-      }
+      setTickets(res.items);
+      setTotalPages(res.totalPages);
+      setTotalTickets(res.total);
     } catch {
-      setSystemStatus("Offline");
-    }
-  };
-
-  const handleCreateTicketSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError("");
-
-    if (!formData.categoryId || !formData.relatedSystemId || !formData.summary.trim() || !formData.description.trim()) {
-      setFormError("All required fields must be filled.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const ticket = await api.createTicket(formData);
-      for (const file of selectedFiles) {
-        await api.uploadAttachment(ticket.id, file);
-      }
-      setFormData({
-        categoryId: "",
-        relatedSystemId: "",
-        requestedPriority: "MEDIUM",
-        summary: "",
-        description: "",
-      });
-      setSelectedFiles([]);
-      setCurrentView("my-tickets");
-    } catch (err: any) {
-      setFormError(err.message || "Failed to create ticket");
+      setTickets([]);
     } finally {
-      setSubmitting(false);
+      setIsLoadingTickets(false);
+    }
+  }, [currentRequester, isSelectingRequester, search, filterCat, filterPriority, filterStatus, page]);
+
+  useEffect(() => {
+    loadTickets();
+  }, [loadTickets]);
+
+  // Load Ticket Detail
+  const loadDetail = useCallback(async (ticketId: number) => {
+    if (!currentRequester) return;
+    setIsLoadingDetail(true);
+    setDetailError(null);
+    try {
+      const data = await fetchTicketDetail(currentRequester.id, ticketId);
+      setDetailTicket(data);
+    } catch (err: any) {
+      setDetailError(err.message || 'Failed to load ticket detail.');
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  }, [currentRequester]);
+
+  useEffect(() => {
+    if (selectedTicketId) {
+      loadDetail(selectedTicketId);
+    }
+  }, [selectedTicketId, loadDetail]);
+
+  // Create Ticket submit
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs: Record<string, string> = {};
+    if (!summary.trim()) errs.summary = 'Summary is required.';
+    if (!description.trim()) errs.description = 'Description is required.';
+    if (!categoryId) errs.categoryId = 'Category is required.';
+    if (!relatedSystemId) errs.relatedSystemId = 'Related System is required.';
+    setCreateErrors(errs);
+    if (Object.keys(errs).length > 0 || !currentRequester) return;
+
+    setIsSubmitting(true);
+    setCreateErrorMsg(null);
+    setCreateSuccessMsg(null);
+
+    try {
+      const newTicket = await createTicket(currentRequester.id, {
+        summary: summary.trim(),
+        description: description.trim(),
+        categoryId: Number(categoryId),
+        relatedSystemId: Number(relatedSystemId),
+        requestedPriority: priority,
+      });
+
+      if (files.length > 0) {
+        try {
+          await uploadAttachments(newTicket.id, files);
+        } catch {}
+      }
+
+      setCreateSuccessMsg(`Ticket created! Official Number: ${newTicket.ticketNumber}`);
+      setSummary('');
+      setDescription('');
+      setCategoryId('');
+      setRelatedSystemId('');
+      setFiles([]);
+
+      setTimeout(() => {
+        setCreateSuccessMsg(null);
+        setSelectedTicketId(newTicket.id);
+      }, 1200);
+    } catch (err: any) {
+      setCreateErrorMsg(err.message || 'Failed to submit ticket');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const files = Array.from(e.target.files);
-    if (files.length + selectedFiles.length > 5) {
-      setFormError("Maximum of 5 attachments allowed.");
+  // Confirm soft removal
+  const handleConfirmSoftRemove = async () => {
+    if (!removalReason.trim()) {
+      setSoftRemoveError('Removal reason is required.');
       return;
     }
-    setSelectedFiles([...selectedFiles, ...files]);
-  };
+    if (!currentRequester || !softRemoveId || !selectedTicketId) return;
 
-  const viewTicketDetail = async (id: number) => {
-    setSelectedTicketId(id);
     try {
-      const data = await api.fetchTicketDetail(id);
-      setTicketDetail(data);
-      setCurrentView("ticket-detail");
-    } catch (err) {
-      alert("Failed to load ticket details or access denied.");
-    }
-  };
-
-  const handleSoftRemoveSubmit = async () => {
-    if (!removalReason.trim() || !removingAttachmentId) return;
-    try {
-      await api.softRemoveAttachment(removingAttachmentId, removalReason);
-      setRemovingAttachmentId(null);
-      setRemovalReason("");
-      if (selectedTicketId) {
-        const refreshed = await api.fetchTicketDetail(selectedTicketId);
-        setTicketDetail(refreshed);
-      }
+      await softRemoveAttachment(currentRequester.id, softRemoveId, removalReason.trim());
+      setSoftRemoveId(null);
+      setRemovalReason('');
+      setSoftRemoveError(null);
+      loadDetail(selectedTicketId);
     } catch (err: any) {
-      alert(err.message || "Removal failed");
+      setSoftRemoveError(err.message || 'Failed to remove attachment');
     }
   };
+
+  // Badge styler for priority & status
+  const getBadgeStyle = (val: string) => {
+    switch (val?.toLowerCase()) {
+      case 'high':
+      case 'critical':
+        return { backgroundColor: '#FED7D7', color: '#9B2C2C' };
+      case 'medium':
+        return { backgroundColor: '#FEEBC8', color: '#7B341E' };
+      case 'low':
+        return { backgroundColor: '#C6F6D5', color: '#22543D' };
+      case 'new':
+      case 'open':
+        return { backgroundColor: '#BEE3F8', color: '#2A4365' };
+      case 'resolved':
+      case 'closed':
+        return { backgroundColor: '#C6F6D5', color: '#22543D' };
+      default:
+        return { backgroundColor: '#EDF2F7', color: '#4A5568' };
+    }
+  };
+
+  // -------------------------------------------------------------
+  // VIEW: 1. SELECT DEVELOPMENT REQUESTER
+  // -------------------------------------------------------------
+  if (!currentRequester || isSelectingRequester) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F7F6', padding: '1rem' }}>
+        <div style={{ maxWidth: '500px', width: '100%', backgroundColor: '#FFFFFF', borderRadius: '8px', border: '1px solid #E2E8F0', padding: '2rem', boxShadow: '0 4px 6px rgba(0,0,0,0.04)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#EAF6EF', color: '#006B3C', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', fontSize: '1.5rem' }}>
+              👤
+            </div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1A2E26', marginBottom: '0.5rem' }}>Select Development Requester</h1>
+            <p style={{ color: '#4A5568', fontSize: '0.875rem' }}>
+              Choose an active requester to test Lab 2 features. (Testing only - not real login)
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {activeRequesters.map((req) => (
+              <button
+                key={req.id}
+                onClick={() => handleSelectRequester(req)}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.875rem 1rem',
+                  border: '1px solid #CBD5E0',
+                  borderRadius: '6px',
+                  backgroundColor: currentRequester?.id === req.id ? '#EAF6EF' : '#FFFFFF',
+                  borderColor: currentRequester?.id === req.id ? '#006B3C' : '#CBD5E0',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <span style={{ fontWeight: '600', color: '#1A2E26' }}>{req.name}</span>
+                <span style={{ color: '#718096', fontSize: '0.875rem' }}>{req.email}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <header className="navbar">
-        <h2>TokTickIT</h2>
-        {activeUser ? (
-          <div className="nav-links">
-            <span style={{ alignSelf: "center" }}>Requester: <strong>{activeUser.name}</strong></span>
-            <button className={currentView === "my-tickets" ? "active" : ""} onClick={() => setCurrentView("my-tickets")}>My Tickets</button>
-            <button className={currentView === "create-ticket" ? "active" : ""} onClick={() => setCurrentView("create-ticket")}>+ New Ticket</button>
-            <button onClick={handleSwitchUser}>Switch User</button>
-          </div>
-        ) : (
-          <div>Development Mode</div>
-        )}
+    <div style={{ minHeight: '100vh', backgroundColor: '#F5F7F6', display: 'flex', flexDirection: 'column' }}>
+      {/* -------------------------------------------------------------
+          Zen Green Header Shell
+      ------------------------------------------------------------- */}
+      <header style={{ backgroundColor: '#006B3C', color: '#FFFFFF', padding: '0.75rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <span style={{ fontWeight: 'bold', fontSize: '1.25rem' }}>⏱️ TokTickIT</span>
+          <nav style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={() => { setActiveTab('my-tickets'); setSelectedTicketId(null); }}
+              style={{ background: activeTab === 'my-tickets' && !selectedTicketId ? '#0B7A46' : 'transparent', border: 'none', color: '#FFFFFF', padding: '0.5rem 0.875rem', borderRadius: '4px', cursor: 'pointer', fontWeight: activeTab === 'my-tickets' ? 'bold' : 'normal' }}
+            >
+              📋 My Tickets
+            </button>
+            <button
+              onClick={() => { setActiveTab('create-ticket'); setSelectedTicketId(null); }}
+              style={{ background: activeTab === 'create-ticket' && !selectedTicketId ? '#0B7A46' : 'transparent', border: 'none', color: '#FFFFFF', padding: '0.5rem 0.875rem', borderRadius: '4px', cursor: 'pointer', fontWeight: activeTab === 'create-ticket' ? 'bold' : 'normal' }}
+            >
+              ➕ Create Ticket
+            </button>
+          </nav>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.875rem' }}>
+          <span>👤 {currentRequester.name}</span>
+          <button
+            onClick={() => setIsSelectingRequester(true)}
+            style={{ backgroundColor: '#0B7A46', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '4px', padding: '0.25rem 0.5rem', cursor: 'pointer' }}
+          >
+            Change Requester
+          </button>
+        </div>
       </header>
 
-      <main className="container">
-        {/* Requester Selector & Lab 1 Diagnostics */}
-        {currentView === "selector" && (
-          <div className="card" style={{ maxWidth: 500, margin: "2rem auto" }}>
-            <h3>Select Active Requester</h3>
-            <p style={{ color: "var(--color-text-muted)" }}>Simulates logging in as a test requester.</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1.2rem" }}>
-              {requesters.map((user) => (
-                <button
-                  key={user.id}
-                  className="btn-primary"
-                  style={{ textAlign: "left", padding: "0.8rem" }}
-                  onClick={() => handleSelectUser(user)}
-                >
-                  <strong>{user.name}</strong> ({user.email})
-                </button>
-              ))}
-            </div>
+      {/* -------------------------------------------------------------
+          Main Content Container
+      ------------------------------------------------------------- */}
+      <main style={{ flex: 1, padding: '2rem', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+        {/* VIEW 1: TICKET DETAIL */}
+        {selectedTicketId ? (
+          <div style={{ backgroundColor: '#FFFFFF', padding: '2rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+            <button
+              onClick={() => setSelectedTicketId(null)}
+              style={{ marginBottom: '1.5rem', background: 'none', border: 'none', color: '#006B3C', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              ← Back to My Tickets
+            </button>
 
-            <div style={{ marginTop: "2rem", paddingTop: "1rem", borderTop: "1px dashed var(--color-border)" }}>
-              <button className="btn-secondary" style={{ width: "100%" }} onClick={handleCheckSystem}>
-                Check System
-              </button>
-              {systemStatus && (
-                <div style={{ marginTop: "0.75rem", textAlign: "center" }}>
-                  {systemStatus === "Online" ? (
-                    <div>
-                      <p>Online</p>
-                      {lab1Categories.length > 0 && (
-                        <ul style={{ listStyle: "none", padding: 0, marginTop: "0.5rem" }}>
-                          {lab1Categories.map((cat: any) => (
-                            <li key={cat.id || cat.name}>{cat.name}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
+            {isLoadingDetail ? (
+              <p style={{ textAlign: 'center', padding: '2rem' }}>Loading ticket...</p>
+            ) : detailError ? (
+              <div style={{ backgroundColor: '#FFF5F5', border: '1px solid #FEB2B2', color: '#C53030', padding: '1rem', borderRadius: '6px' }}>{detailError}</div>
+            ) : detailTicket ? (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#718096' }}>Ticket Number</span>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#006B3C' }}>{detailTicket.ticketNumber}</h2>
+                  </div>
+                  <span style={{ padding: '0.25rem 0.75rem', borderRadius: '12px', fontWeight: 'bold', alignSelf: 'center', ...getBadgeStyle(detailTicket.currentStatus || detailTicket.status || 'New') }}>
+                    {detailTicket.currentStatus || detailTicket.status || 'New'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ backgroundColor: '#F7FAFC', padding: '0.75rem', borderRadius: '6px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#718096' }}>Category</span>
+                    <p style={{ fontWeight: '600', color: '#2D3748' }}>{detailTicket.category?.name || '-'}</p>
+                  </div>
+                  <div style={{ backgroundColor: '#F7FAFC', padding: '0.75rem', borderRadius: '6px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#718096' }}>Related System</span>
+                    <p style={{ fontWeight: '600', color: '#2D3748' }}>{detailTicket.relatedSystem?.name || '-'}</p>
+                  </div>
+                  <div style={{ backgroundColor: '#F7FAFC', padding: '0.75rem', borderRadius: '6px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#718096' }}>Requested Priority</span>
+                    <p style={{ fontWeight: '600', color: '#2D3748' }}>{detailTicket.requestedPriority}</p>
+                  </div>
+                  <div style={{ backgroundColor: '#F7FAFC', padding: '0.75rem', borderRadius: '6px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#718096' }}>Created Date</span>
+                    <p style={{ fontWeight: '600', color: '#2D3748' }}>{new Date(detailTicket.createdAt).toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <strong style={{ color: '#4A5568' }}>Summary:</strong>
+                  <p style={{ marginTop: '0.25rem', color: '#2D3748', fontSize: '1.1rem', fontWeight: '600' }}>{detailTicket.summary}</p>
+                </div>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <strong style={{ color: '#4A5568' }}>Description:</strong>
+                  <p style={{ marginTop: '0.25rem', color: '#2D3748', backgroundColor: '#F7FAFC', padding: '1rem', borderRadius: '6px', whiteSpace: 'pre-wrap' }}>
+                    {detailTicket.description}
+                  </p>
+                </div>
+
+                {/* Attachments Section */}
+                <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#1A2E26' }}>
+                    Attachments ({detailTicket.attachments?.length || 0})
+                  </h3>
+                  {!detailTicket.attachments?.length ? (
+                    <p style={{ color: '#718096', fontSize: '0.875rem' }}>No attachments associated with this ticket.</p>
                   ) : (
-                    <div>
-                      <p>Offline</p>
-                      <p style={{ color: "var(--color-danger)" }}>TokTickIT API is currently unavailable</p>
-                    </div>
+                    detailTicket.attachments.map((att) => (
+                      <div
+                        key={att.id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '0.75rem',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '6px',
+                          marginBottom: '0.5rem',
+                          backgroundColor: att.isRemoved ? '#FFF5F5' : '#FFFFFF',
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontWeight: '600', color: att.isRemoved ? '#A0AEC0' : '#2D3748' }}>📎 {att.fileName}</span>
+                          <span style={{ fontSize: '0.75rem', color: '#718096', marginLeft: '0.5rem' }}>
+                            ({(att.fileSize / 1024).toFixed(1)} KB)
+                          </span>
+                          {att.isRemoved && (
+                            <div style={{ color: '#E53E3E', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                              <em>Removed: {att.removalReason}</em>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          {!att.isRemoved ? (
+                            <button
+                              onClick={() => { setSoftRemoveId(att.id); setSoftRemoveError(null); }}
+                              style={{ color: '#E53E3E', background: '#FFF5F5', border: '1px solid #FEB2B2', borderRadius: '4px', padding: '0.25rem 0.5rem', fontSize: '0.75rem', cursor: 'pointer' }}
+                            >
+                              Remove
+                            </button>
+                          ) : (
+                            <span style={{ color: '#A0AEC0', fontSize: '0.75rem', fontStyle: 'italic' }}>Download Unavailable</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
-              )}
-            </div>
+
+                {/* Soft-remove modal */}
+                {softRemoveId && (
+                  <div style={{ marginTop: '1.5rem', padding: '1.25rem', backgroundColor: '#FFF5F5', border: '1px solid #FEB2B2', borderRadius: '6px' }}>
+                    <h4 style={{ fontWeight: 'bold', color: '#C53030', marginBottom: '0.5rem' }}>Soft-Remove Attachment</h4>
+                    <p style={{ fontSize: '0.875rem', color: '#4A5568', marginBottom: '0.5rem' }}>
+                      Please provide a mandatory reason for removing this attachment:
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="e.g. Uploaded wrong screenshot..."
+                      value={removalReason}
+                      onChange={(e) => setRemovalReason(e.target.value)}
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid #CBD5E0', borderRadius: '4px', marginBottom: '0.5rem' }}
+                    />
+                    {softRemoveError && <p style={{ color: '#E53E3E', fontSize: '0.75rem', marginBottom: '0.5rem' }}>{softRemoveError}</p>}
+                    <button
+                      onClick={handleConfirmSoftRemove}
+                      style={{ background: '#C53030', color: '#FFFFFF', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginRight: '0.5rem' }}
+                    >
+                      Confirm Removal
+                    </button>
+                    <button
+                      onClick={() => { setSoftRemoveId(null); setRemovalReason(''); setSoftRemoveError(null); }}
+                      style={{ background: '#E2E8F0', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
-        )}
+        ) : activeTab === 'create-ticket' ? (
+          /* VIEW 2: CREATE TICKET */
+          <div style={{ backgroundColor: '#FFFFFF', padding: '2rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1A2E26', marginBottom: '1.5rem' }}>Create Support Ticket</h2>
 
-        {/* My Tickets View */}
-        {currentView === "my-tickets" && activeUser && (
-          <div className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h3>My Tickets</h3>
-              <button className="btn-primary" onClick={() => setCurrentView("create-ticket")}>+ Create Ticket</button>
+            {createErrorMsg && <div style={{ color: '#C53030', backgroundColor: '#FFF5F5', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', border: '1px solid #FEB2B2' }}>{createErrorMsg}</div>}
+            {createSuccessMsg && <div style={{ color: '#22543D', backgroundColor: '#EAF6EF', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', border: '1px solid #9AE6B4' }}>{createSuccessMsg}</div>}
+
+            <form onSubmit={handleCreateSubmit}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Category *</label>
+                  <select value={categoryId} onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : '')} style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: createErrors.categoryId ? '1px solid #E53E3E' : '1px solid #CBD5E0' }}>
+                    <option value="">-- Select Category --</option>
+                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  {createErrors.categoryId && <span style={{ color: '#E53E3E', fontSize: '0.75rem' }}>{createErrors.categoryId}</span>}
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Related System *</label>
+                  <select value={relatedSystemId} onChange={(e) => setRelatedSystemId(e.target.value ? Number(e.target.value) : '')} style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: createErrors.relatedSystemId ? '1px solid #E53E3E' : '1px solid #CBD5E0' }}>
+                    <option value="">-- Select System --</option>
+                    {relatedSystems.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  {createErrors.relatedSystemId && <span style={{ color: '#E53E3E', fontSize: '0.75rem' }}>{createErrors.relatedSystemId}</span>}
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Priority</label>
+                  <select value={priority} onChange={(e) => setPriority(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #CBD5E0' }}>
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Summary *</label>
+                <input type="text" placeholder="Brief summary of issue" value={summary} onChange={(e) => setSummary(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: createErrors.summary ? '1px solid #E53E3E' : '1px solid #CBD5E0' }} />
+                {createErrors.summary && <span style={{ color: '#E53E3E', fontSize: '0.75rem' }}>{createErrors.summary}</span>}
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Description *</label>
+                <textarea rows={4} placeholder="Detailed explanation..." value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: createErrors.description ? '1px solid #E53E3E' : '1px solid #CBD5E0' }} />
+                {createErrors.description && <span style={{ color: '#E53E3E', fontSize: '0.75rem' }}>{createErrors.description}</span>}
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Attachments (Max 5, ≤ 5MB, JPG/PNG/WEBP/PDF)</label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    if (e.target.files) setFiles(Array.from(e.target.files).slice(0, 5));
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                style={{ backgroundColor: '#006B3C', color: '#FFFFFF', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: isSubmitting ? 'not-allowed' : 'pointer' }}
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* VIEW 3: MY TICKETS */
+          <div style={{ backgroundColor: '#FFFFFF', padding: '2rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1A2E26' }}>My Tickets</h2>
+                <p style={{ fontSize: '0.875rem', color: '#718096' }}>Showing tickets for <strong>{currentRequester.name}</strong></p>
+              </div>
+              <button
+                onClick={() => setActiveTab('create-ticket')}
+                style={{ backgroundColor: '#006B3C', color: '#FFFFFF', padding: '0.5rem 1rem', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                ➕ Create Ticket
+              </button>
             </div>
 
-            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+            {/* Filters */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem', backgroundColor: '#F7FAFC', padding: '1rem', borderRadius: '6px' }}>
               <input
                 type="text"
-                placeholder="Search ticket number or summary..."
-                className="form-control"
-                style={{ flex: 1 }}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="🔍 Search summary..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                style={{ padding: '0.5rem', flex: 1, minWidth: '160px', borderRadius: '4px', border: '1px solid #CBD5E0' }}
               />
-              <select className="form-control" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <select value={filterCat} onChange={(e) => { setFilterCat(e.target.value ? Number(e.target.value) : ''); setPage(1); }} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #CBD5E0' }}>
+                <option value="">All Categories</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <select value={filterPriority} onChange={(e) => { setFilterPriority(e.target.value); setPage(1); }} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #CBD5E0' }}>
+                <option value="">All Priorities</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+              <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #CBD5E0' }}>
                 <option value="">All Statuses</option>
                 <option value="New">New</option>
+                <option value="Open">Open</option>
                 <option value="In Progress">In Progress</option>
                 <option value="Resolved">Resolved</option>
               </select>
-              <select className="form-control" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                <option value="">All Categories</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
             </div>
 
-            <div className="table-responsive">
-              <table>
+            {/* Table */}
+            {isLoadingTickets ? (
+              <p style={{ textAlign: 'center', padding: '2rem' }}>Loading tickets...</p>
+            ) : tickets.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#718096' }}>
+                <p style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>📭 No tickets found</p>
+                <p style={{ fontSize: '0.875rem' }}>
+                  {search || filterCat || filterPriority || filterStatus
+                    ? 'Try clearing or changing your filters.'
+                    : 'You have not created any tickets yet.'}
+                </p>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                 <thead>
-                  <tr>
-                    <th>Ticket ID</th>
-                    <th>Summary</th>
-                    <th>Category</th>
-                    <th>System</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Action</th>
+                  <tr style={{ borderBottom: '2px solid #E2E8F0', color: '#4A5568' }}>
+                    <th style={{ padding: '0.75rem' }}>Ticket No.</th>
+                    <th style={{ padding: '0.75rem' }}>Summary</th>
+                    <th style={{ padding: '0.75rem' }}>Category</th>
+                    <th style={{ padding: '0.75rem' }}>Priority</th>
+                    <th style={{ padding: '0.75rem' }}>Status</th>
+                    <th style={{ padding: '0.75rem' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tickets.length === 0 ? (
-                    <tr><td colSpan={8} style={{ textAlign: "center" }}>No tickets found.</td></tr>
-                  ) : (
-                    tickets.map((t) => (
-                      <tr key={t.id}>
-                        <td><strong>{t.ticketNumber}</strong></td>
-                        <td>{t.summary}</td>
-                        <td>{t.category?.name}</td>
-                        <td>{t.relatedSystem?.name}</td>
-                        <td><span className="badge badge-priority">{t.requestedPriority}</span></td>
-                        <td><span className="badge badge-new">{t.currentStatus}</span></td>
-                        <td>{new Date(t.createdAt).toLocaleDateString()}</td>
-                        <td>
-                          <button className="btn-primary" style={{ padding: "0.3rem 0.6rem" }} onClick={() => viewTicketDetail(t.id)}>
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  {tickets.map((t) => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid #EDF2F7' }}>
+                      <td style={{ padding: '0.75rem', fontWeight: 'bold', color: '#006B3C' }}>{t.ticketNumber}</td>
+                      <td style={{ padding: '0.75rem', color: '#2D3748' }}>{t.summary}</td>
+                      <td style={{ padding: '0.75rem', color: '#4A5568' }}>{t.category?.name || '-'}</td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <span style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', ...getBadgeStyle(t.requestedPriority) }}>
+                          {t.requestedPriority}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <span style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', ...getBadgeStyle(t.currentStatus || t.status || 'New') }}>
+                          {t.currentStatus || t.status || 'New'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <button
+                          onClick={() => setSelectedTicketId(t.id)}
+                          style={{ color: '#006B3C', cursor: 'pointer', background: 'none', border: 'none', textDecoration: 'underline', fontWeight: 'bold' }}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-            </div>
+            )}
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1rem" }}>
-              <span>Total: {pagination.totalItems} tickets</span>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button
-                  className="btn-secondary"
-                  disabled={pagination.page <= 1}
-                  onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-                >
-                  Previous
-                </button>
-                <span style={{ alignSelf: "center" }}>Page {pagination.page} of {pagination.totalPages}</span>
-                <button
-                  className="btn-secondary"
-                  disabled={pagination.page >= pagination.totalPages}
-                  onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-                >
-                  Next
-                </button>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', borderTop: '1px solid #E2E8F0', paddingTop: '1rem', fontSize: '0.875rem' }}>
+                <span style={{ color: '#718096' }}>Showing {tickets.length} of {totalTickets}</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', border: '1px solid #CBD5E0', background: page <= 1 ? '#EDF2F7' : '#FFFFFF', cursor: page <= 1 ? 'not-allowed' : 'pointer' }}>
+                    Prev
+                  </button>
+                  <span style={{ padding: '0.25rem 0.5rem', fontWeight: 'bold' }}>{page} / {totalPages}</span>
+                  <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} style={{ padding: '0.25rem 0.75rem', borderRadius: '4px', border: '1px solid #CBD5E0', background: page >= totalPages ? '#EDF2F7' : '#FFFFFF', cursor: page >= totalPages ? 'not-allowed' : 'pointer' }}>
+                    Next
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Create Ticket Form */}
-        {currentView === "create-ticket" && activeUser && (
-          <div className="card" style={{ maxWidth: 700, margin: "auto" }}>
-            <h3>Create IT Support Ticket</h3>
-            {formError && <div className="alert-error">{formError}</div>}
-            <form onSubmit={handleCreateTicketSubmit}>
-              <div className="form-group">
-                <label>Requester (Read-Only)</label>
-                <input className="form-control read-only" value={`${activeUser.name} (${activeUser.email})`} readOnly />
-              </div>
-
-              <div className="form-group">
-                <label>Category *</label>
-                <select
-                  className="form-control"
-                  value={formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                  required
-                >
-                  <option value="">Select Category</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Related System *</label>
-                <select
-                  className="form-control"
-                  value={formData.relatedSystemId}
-                  onChange={(e) => setFormData({ ...formData, relatedSystemId: e.target.value })}
-                  required
-                >
-                  <option value="">Select System</option>
-                  {relatedSystems.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Requested Priority</label>
-                <select
-                  className="form-control"
-                  value={formData.requestedPriority}
-                  onChange={(e) => setFormData({ ...formData, requestedPriority: e.target.value })}
-                >
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                  <option value="URGENT">Urgent</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Summary / Title *</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={formData.summary}
-                  onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Description *</label>
-                <textarea
-                  rows={4}
-                  className="form-control"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Attachments (Max 5 files, JPG/PNG/WEBP/PDF &le; 5MB)</label>
-                <input type="file" multiple onChange={handleFileChange} accept=".jpg,.jpeg,.png,.webp,.pdf" />
-                {selectedFiles.length > 0 && (
-                  <ul style={{ marginTop: "0.5rem" }}>
-                    {selectedFiles.map((f, i) => (
-                      <li key={i}>{f.name} ({(f.size / 1024).toFixed(1)} KB)</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div style={{ display: "flex", gap: "1rem", marginTop: "1.5rem" }}>
-                <button type="submit" className="btn-primary" disabled={submitting}>
-                  {submitting ? "Submitting..." : "Submit Ticket"}
-                </button>
-                <button type="button" className="btn-secondary" onClick={() => setCurrentView("my-tickets")}>Cancel</button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Ticket Detail View */}
-        {currentView === "ticket-detail" && ticketDetail && (
-          <div className="card" style={{ maxWidth: 800, margin: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h3>Ticket: {ticketDetail.ticketNumber}</h3>
-              <button className="btn-secondary" onClick={() => setCurrentView("my-tickets")}>Back to List</button>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
-              <div><strong>Status:</strong> <span className="badge badge-new">{ticketDetail.currentStatus}</span></div>
-              <div><strong>Priority:</strong> <span className="badge badge-priority">{ticketDetail.requestedPriority}</span></div>
-              <div><strong>Category:</strong> {ticketDetail.category?.name}</div>
-              <div><strong>Related System:</strong> {ticketDetail.relatedSystem?.name}</div>
-              <div><strong>Created:</strong> {new Date(ticketDetail.createdAt).toLocaleString()}</div>
-              <div><strong>Requester:</strong> {ticketDetail.requester?.name}</div>
-            </div>
-
-            <div style={{ marginBottom: "1.5rem" }}>
-              <h4>Summary</h4>
-              <p>{ticketDetail.summary}</p>
-            </div>
-
-            <div style={{ marginBottom: "1.5rem" }}>
-              <h4>Description</h4>
-              <p style={{ whiteSpace: "pre-line" }}>{ticketDetail.description}</p>
-            </div>
-
-            <hr style={{ border: "0", borderTop: "1px solid var(--color-border)", margin: "1.5rem 0" }} />
-
-            <h4>Attachments</h4>
-            {ticketDetail.attachments && ticketDetail.attachments.length > 0 ? (
-              <ul style={{ listStyle: "none", padding: 0 }}>
-                {ticketDetail.attachments.map((att: any) => (
-                  <li
-                    key={att.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "0.6rem 0",
-                      borderBottom: "1px solid var(--color-border)",
-                    }}
-                  >
-                    <div>
-                      {att.isRemoved ? (
-                        <span style={{ color: "var(--color-text-muted)", textDecoration: "line-through" }}>
-                          {att.fileName} (Removed: {att.removalReason})
-                        </span>
-                      ) : (
-                        <span>
-                          <strong>{att.fileName}</strong> ({(att.fileSize / 1024).toFixed(1)} KB)
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      {!att.isRemoved && (
-                        <button
-                          className="btn-danger"
-                          style={{ fontSize: "0.8rem" }}
-                          onClick={() => setRemovingAttachmentId(att.id)}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p style={{ color: "var(--color-text-muted)" }}>No attachments uploaded.</p>
             )}
           </div>
         )}
       </main>
-
-      {/* Soft Remove Modal */}
-      {removingAttachmentId && (
-        <div className="modal-backdrop">
-          <div className="modal-content">
-            <h4>Remove Attachment</h4>
-            <p>Please enter the reason for removing this file (required for audit trail):</p>
-            <textarea
-              className="form-control"
-              rows={3}
-              placeholder="e.g. Confidential data attached by mistake"
-              value={removalReason}
-              onChange={(e) => setRemovalReason(e.target.value)}
-            />
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginTop: "1rem" }}>
-              <button className="btn-secondary" onClick={() => setRemovingAttachmentId(null)}>Cancel</button>
-              <button className="btn-danger" disabled={!removalReason.trim()} onClick={handleSoftRemoveSubmit}>
-                Confirm Removal
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
-}
+};
 
 export default App;
