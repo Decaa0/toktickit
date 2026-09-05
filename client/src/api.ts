@@ -1,114 +1,181 @@
-const BASE_URL = "http://localhost:3000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-export function getActiveRequesterId(): string | null {
-  return localStorage.getItem("active_requester_id");
+export interface RequesterUser {
+  id: number;
+  name: string;
+  email: string;
 }
 
-export function setActiveRequesterId(id: string): void {
-  localStorage.setItem("active_requester_id", id);
+export interface Category {
+  id: number;
+  name: string;
 }
 
-export function clearActiveRequester(): void {
-  localStorage.removeItem("active_requester_id");
+export interface RelatedSystem {
+  id: number;
+  name: string;
 }
 
-function getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
-  const reqId = getActiveRequesterId();
-  const headers: Record<string, string> = {
-    ...customHeaders,
-  };
-  if (reqId) {
-    headers["x-requester-id"] = reqId;
+export interface Attachment {
+  id: number;
+  ticketId: number;
+  fileName: string;
+  storagePath: string;
+  mimeType: string;
+  fileSize: number;
+  isRemoved: boolean;
+  removalReason?: string | null;
+  removedAt?: string | null;
+  createdAt: string;
+}
+
+export interface Ticket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  description: string;
+  requestedPriority: 'Low' | 'Medium' | 'High' | 'Critical';
+  currentStatus: string;
+  status?: string;
+  requesterId: number;
+  categoryId: number;
+  relatedSystemId: number;
+  createdAt: string;
+  category?: Category;
+  relatedSystem?: RelatedSystem;
+  attachments?: Attachment[];
+}
+
+export interface TicketListResponse {
+  items: Ticket[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const fetchActiveRequesters = async (): Promise<RequesterUser[]> => {
+  const res = await fetch(`${API_BASE_URL}/requesters/active`);
+  if (!res.ok) throw new Error('Failed to load active requesters');
+  return res.json();
+};
+
+export const fetchCategories = async (): Promise<Category[]> => {
+  const res = await fetch(`${API_BASE_URL}/categories`);
+  if (!res.ok) throw new Error('Failed to load categories');
+  return res.json();
+};
+
+export const fetchRelatedSystems = async (): Promise<RelatedSystem[]> => {
+  const res = await fetch(`${API_BASE_URL}/related-systems`);
+  if (!res.ok) throw new Error('Failed to load related systems');
+  return res.json();
+};
+
+export const createTicket = async (
+  requesterId: number,
+  ticketData: {
+    summary: string;
+    description: string;
+    categoryId: number;
+    relatedSystemId: number;
+    requestedPriority: string;
   }
-  return headers;
-}
-
-export async function fetchActiveRequesters() {
-  const res = await fetch(`${BASE_URL}/requesters/active`);
-  if (!res.ok) throw new Error("Failed to fetch requesters");
-  return res.json();
-}
-
-export async function fetchCategories() {
-  const res = await fetch(`${BASE_URL}/categories`);
-  if (!res.ok) throw new Error("Failed to fetch categories");
-  return res.json();
-}
-
-export async function fetchRelatedSystems() {
-  const res = await fetch(`${BASE_URL}/related-systems`);
-  if (!res.ok) throw new Error("Failed to fetch systems");
-  return res.json();
-}
-
-export async function createTicket(data: any) {
-  const res = await fetch(`${BASE_URL}/tickets`, {
-    method: "POST",
-    headers: getHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(data),
+): Promise<Ticket> => {
+  const res = await fetch(`${API_BASE_URL}/tickets`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-requester-id': String(requesterId),
+    },
+    body: JSON.stringify(ticketData),
   });
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to create ticket");
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to create ticket');
   }
   return res.json();
-}
+};
 
-export async function uploadAttachment(ticketId: number, file: File) {
+export const uploadAttachments = async (
+  ticketId: number,
+  files: File[]
+): Promise<Attachment[]> => {
   const formData = new FormData();
-  formData.append("file", file);
+  files.forEach((file) => formData.append('files', file));
 
-  const res = await fetch(`${BASE_URL}/tickets/${ticketId}/attachments`, {
-    method: "POST",
-    headers: getHeaders(),
+  const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}/attachments`, {
+    method: 'POST',
     body: formData,
   });
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to upload file");
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to upload attachments');
   }
   return res.json();
-}
+};
 
-export async function fetchMyTickets(params: Record<string, any> = {}) {
-  const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${BASE_URL}/tickets?${query}`, {
-    headers: getHeaders(),
+export const fetchMyTickets = async (
+  requesterId: number,
+  params: {
+    search?: string;
+    categoryId?: number | '';
+    priority?: string;
+    status?: string;
+    page?: number;
+    pageSize?: number;
+  }
+): Promise<TicketListResponse> => {
+  const query = new URLSearchParams();
+  if (params.search) query.append('search', params.search);
+  if (params.categoryId) query.append('categoryId', String(params.categoryId));
+  if (params.priority) query.append('priority', params.priority);
+  if (params.status) query.append('status', params.status);
+  if (params.page) query.append('page', String(params.page));
+  if (params.pageSize) query.append('pageSize', String(params.pageSize));
+
+  const res = await fetch(`${API_BASE_URL}/tickets?${query.toString()}`, {
+    headers: {
+      'x-requester-id': String(requesterId),
+    },
   });
-  if (!res.ok) throw new Error("Failed to fetch tickets");
+  if (!res.ok) throw new Error('Failed to fetch tickets');
   return res.json();
-}
+};
 
-export async function fetchTicketDetail(id: string | number) {
-  const res = await fetch(`${BASE_URL}/tickets/${id}`, {
-    headers: getHeaders(),
+export const fetchTicketDetail = async (
+  requesterId: number,
+  ticketId: number
+): Promise<Ticket> => {
+  const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}`, {
+    headers: {
+      'x-requester-id': String(requesterId),
+    },
   });
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to fetch ticket detail");
+    if (res.status === 403) throw new Error('Access forbidden: You cannot view tickets belonging to other requesters.');
+    if (res.status === 404) throw new Error('Ticket not found');
+    throw new Error('Failed to load ticket detail');
   }
   return res.json();
-}
+};
 
-export async function softRemoveAttachment(attachmentId: number, reason: string) {
-  const res = await fetch(`${BASE_URL}/attachments/${attachmentId}/soft-remove`, {
-    method: "PATCH",
-    headers: getHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ reason }),
+export const softRemoveAttachment = async (
+  requesterId: number,
+  attachmentId: number,
+  removalReason: string
+): Promise<Attachment> => {
+  const res = await fetch(`${API_BASE_URL}/attachments/${attachmentId}/soft-remove`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-requester-id': String(requesterId),
+    },
+    body: JSON.stringify({ removalReason }),
   });
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to soft-remove attachment");
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to remove attachment');
   }
   return res.json();
-}
-export async function checkSystem() {
-  try {
-    const res = await fetch("http://localhost:3000/api/categories");
-    if (!res.ok) throw new Error("API Offline");
-    const categories = await res.json();
-    return { ok: true, categories };
-  } catch (err) {
-    return { ok: false, categories: [] };
-  }
-}
+};
