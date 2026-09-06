@@ -16,11 +16,14 @@ import {
 
 export const App: React.FC = () => {
   // -------------------------------------------------------------
-  // Requester context state (Always starts on selection screen upon refresh)
+  // Requester context state
   // -------------------------------------------------------------
-  const [currentRequester, setCurrentRequester] = useState<RequesterUser | null>(null);
+  const [currentRequester, setCurrentRequester] = useState<RequesterUser | null>(() => {
+    const saved = localStorage.getItem('toktickit_requester');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [activeRequesters, setActiveRequesters] = useState<RequesterUser[]>([]);
-  const [isSelectingRequester, setIsSelectingRequester] = useState<boolean>(true);
+  const [isSelectingRequester, setIsSelectingRequester] = useState<boolean>(!currentRequester);
 
   // -------------------------------------------------------------
   // Navigation & View state
@@ -41,11 +44,11 @@ export const App: React.FC = () => {
   const [relatedSystemId, setRelatedSystemId] = useState<number | ''>('');
   const [priority, setPriority] = useState('Medium');
   const [files, setFiles] = useState<File[]>([]);
-  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createSuccessMsg, setCreateSuccessMsg] = useState<string | null>(null);
   const [createErrorMsg, setCreateErrorMsg] = useState<string | null>(null);
+
   // -------------------------------------------------------------
   // My Tickets List state
   // -------------------------------------------------------------
@@ -78,39 +81,10 @@ export const App: React.FC = () => {
 
   const handleSelectRequester = (user: RequesterUser) => {
     setCurrentRequester(user);
+    localStorage.setItem('toktickit_requester', JSON.stringify(user));
     setIsSelectingRequester(false);
     setSelectedTicketId(null);
     setPage(1);
-  };
-
-  // Attachment validation handler (Lab 2 requirement)
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const selectedFiles = Array.from(e.target.files);
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-
-    const hasInvalid = selectedFiles.some(
-      (file) =>
-        !allowedMimeTypes.includes(file.type) &&
-        !file.name.match(/\.(jpg|jpeg|png|webp|pdf)$/i)
-    );
-
-    if (hasInvalid) {
-      setAttachmentError('Allowed types: JPG, PNG, WEBP, PDF');
-      setFiles([]);
-      e.target.value = '';
-      return;
-    }
-
-    if (selectedFiles.length > 5) {
-      setAttachmentError('Maximum 5 attachments allowed.');
-      setFiles([]);
-      e.target.value = '';
-      return;
-    }
-
-    setAttachmentError(null);
-    setFiles(selectedFiles.slice(0, 5));
   };
 
   // Load My Tickets
@@ -164,9 +138,6 @@ export const App: React.FC = () => {
   // Create Ticket submit
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (attachmentError) return;
-
     const errs: Record<string, string> = {};
     if (!summary.trim()) errs.summary = 'Summary is required.';
     if (!description.trim()) errs.description = 'Description is required.';
@@ -200,14 +171,13 @@ export const App: React.FC = () => {
       setCategoryId('');
       setRelatedSystemId('');
       setFiles([]);
-      setAttachmentError(null);
 
       setTimeout(() => {
         setCreateSuccessMsg(null);
         setSelectedTicketId(newTicket.id);
       }, 1200);
     } catch (err: any) {
-      setCreateErrorMsg(err?.message || 'Failed to submit ticket');
+      setCreateErrorMsg(err.message || 'Failed to submit ticket');
     } finally {
       setIsSubmitting(false);
     }
@@ -300,7 +270,9 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F5F7F6', display: 'flex', flexDirection: 'column' }}>
-      {/* Zen Green Header */}
+      {/* -------------------------------------------------------------
+          Zen Green Header Shell
+      ------------------------------------------------------------- */}
       <header style={{ backgroundColor: '#006B3C', color: '#FFFFFF', padding: '0.75rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
           <span style={{ fontWeight: 'bold', fontSize: '1.25rem' }}>⏱️ TokTickIT</span>
@@ -330,7 +302,9 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Container */}
+      {/* -------------------------------------------------------------
+          Main Content Container
+      ------------------------------------------------------------- */}
       <main style={{ flex: 1, padding: '2rem', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
         {/* VIEW 1: TICKET DETAIL */}
         {selectedTicketId ? (
@@ -522,43 +496,21 @@ export const App: React.FC = () => {
                 {createErrors.description && <span style={{ color: '#E53E3E', fontSize: '0.75rem' }}>{createErrors.description}</span>}
               </div>
 
-              {/* Attachments Section */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                  Attachments (Max 5, ≤ 5MB, JPG/PNG/WEBP/PDF)
-                </label>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Attachments (Max 5, ≤ 5MB, JPG/PNG/WEBP/PDF)</label>
                 <input
                   type="file"
                   multiple
-                  onChange={handleFileChange}
-                  style={{ display: 'block', marginTop: '0.5rem' }}
+                  onChange={(e) => {
+                    if (e.target.files) setFiles(Array.from(e.target.files).slice(0, 5));
+                  }}
                 />
-                {attachmentError && (
-                  <p style={{ color: '#E53E3E', fontSize: '0.875rem', marginTop: '0.5rem', fontWeight: '600' }}>
-                    {attachmentError}
-                  </p>
-                )}
-                {files.length > 0 && !attachmentError && (
-                  <ul style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#4A5568', paddingLeft: '1.25rem' }}>
-                    {files.map((f, i) => (
-                      <li key={i}>{f.name} ({(f.size / 1024).toFixed(1)} KB)</li>
-                    ))}
-                  </ul>
-                )}
               </div>
 
               <button
                 type="submit"
-                disabled={isSubmitting || !!attachmentError}
-                style={{
-                  backgroundColor: isSubmitting || !!attachmentError ? '#A0AEC0' : '#006B3C',
-                  color: '#FFFFFF',
-                  padding: '0.75rem 1.5rem',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontWeight: 'bold',
-                  cursor: isSubmitting || !!attachmentError ? 'not-allowed' : 'pointer',
-                }}
+                disabled={isSubmitting}
+                style={{ backgroundColor: '#006B3C', color: '#FFFFFF', padding: '0.75rem 1.5rem', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: isSubmitting ? 'not-allowed' : 'pointer' }}
               >
                 {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
               </button>
