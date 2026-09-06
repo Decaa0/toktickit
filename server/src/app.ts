@@ -3,7 +3,11 @@ import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { prisma } from './prisma';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -160,7 +164,6 @@ app.post('/api/tickets', async (req, res) => {
       return res.status(500).json({ error: 'Failed to create ticket in database' });
     }
 
-    // Format status to Title Case ('New') to satisfy vitest assertions
     const rawStatus = ticket.currentStatus || ticket.status || 'New';
     const formattedStatus =
       rawStatus.toUpperCase() === 'NEW'
