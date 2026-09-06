@@ -19,26 +19,37 @@ async function main() {
     });
   }
 
-  // 2. Seed Related Systems (>= 6)
+  // 2. Seed Related Systems
   const relatedSystems = [
-    { name: 'Email', categoryId: 1 },
-    { name: 'LEB2 App', categoryId: 3 },
-    { name: 'Grade Submission App', categoryId: 3 },
-    { name: 'Campus Wi-Fi', categoryId: 4 },
-    { name: 'VPN', categoryId: 4 },
-    { name: 'Corporate Laptop', categoryId: 2 },
-    { name: 'Printer', categoryId: 2 },
+    { name: 'Email' },
+    { name: 'LEB2 App' },
+    { name: 'Grade Submission App' },
+    { name: 'Campus Wi-Fi' },
+    { name: 'VPN' },
+    { name: 'Corporate Laptop' },
+    { name: 'Printer' },
   ];
 
   for (const sys of relatedSystems) {
     await prisma.relatedSystem.upsert({
       where: { name: sys.name },
       update: {},
-      create: sys,
+      create: {
+        name: sys.name,
+      },
     });
   }
 
-  // 3. Seed Requesters (4 active, 1 inactive)
+  // 3. Delete old @example.com users to prevent duplicate display
+  await prisma.requesterUser.deleteMany({
+    where: {
+      email: {
+        contains: 'example.com',
+      },
+    },
+  });
+
+  // 4. Seed Requesters (4 active, 1 inactive)
   const requesters = [
     { name: 'Jennifer Anderson', email: 'jennifer.anderson@kmutt.ac.th', isActive: true },
     { name: 'David Lee', email: 'david.lee@kmutt.ac.th', isActive: true },
@@ -50,7 +61,10 @@ async function main() {
   for (const req of requesters) {
     await prisma.requesterUser.upsert({
       where: { email: req.email },
-      update: { isActive: req.isActive },
+      update: {
+        name: req.name,
+        isActive: req.isActive,
+      },
       create: req,
     });
   }
