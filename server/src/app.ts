@@ -1,3 +1,4 @@
+import adminRoutes from "./routes/admin.routes";
 import staffRoutes from "./routes/staff.routes";
 import authRoutes from "./routes/auth.routes";
 import express from 'express';
@@ -359,5 +360,6 @@ app.patch('/api/attachments/:id/soft-remove', async (req, res) => {
 export { app };
 app.use("/api/auth", authRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/admin", adminRoutes);
 
 export default app;
