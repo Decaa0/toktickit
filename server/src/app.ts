@@ -1,3 +1,4 @@
+import staffRoutes from "./routes/staff.routes";
 import authRoutes from "./routes/auth.routes";
 import express from 'express';
 import cors from 'cors';
@@ -357,5 +358,6 @@ app.patch('/api/attachments/:id/soft-remove', async (req, res) => {
 
 export { app };
 app.use("/api/auth", authRoutes);
+app.use("/api/staff", staffRoutes);
 
 export default app;
