@@ -18,23 +18,73 @@ model User {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  createdTickets  Ticket[] @relation("RequesterTickets")
-  assignedTickets Ticket[] @relation("AssignedTickets")
+  createdTickets  Ticket[] @relation("UserRequesterTickets")
+  assignedTickets Ticket[] @relation("UserAssignedTickets")
+}
+
+model RequesterUser {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  fullName  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets   Ticket[]
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets   Ticket[]
+}
+
+model RelatedSystem {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets   Ticket[]
 }
 
 model Ticket {
-  id               String   @id @default(uuid())
-  title            String
-  description      String
-  status           String   @default("OPEN")
-  priority         String   @default("MEDIUM")
-  category         String   @default("OTHER")
-  relatedSystemId  String?
-  requesterId      String
-  assignedStaffId  String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                Int            @id @default(autoincrement())
+  ticketNumber      String         @unique
+  summary           String
+  description       String
+  requestedPriority String         @default("Medium")
+  itPriority        String?
+  currentStatus     String         @default("New")
+  requesterId       Int?
+  requesterUserId   String?
+  assignedStaffId   String?
+  categoryId        Int
+  relatedSystemId   Int?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
-  requester     User   @relation("RequesterTickets", fields: [requesterId], references: [id])
-  assignedStaff User?  @relation("AssignedTickets", fields: [assignedStaffId], references: [id])
+  requester       RequesterUser? @relation(fields: [requesterId], references: [id])
+  userRequester   User?          @relation("UserRequesterTickets", fields: [requesterUserId], references: [id])
+  assignedStaff   User?          @relation("UserAssignedTickets", fields: [assignedStaffId], references: [id])
+  category        Category       @relation(fields: [categoryId], references: [id])
+  relatedSystem   RelatedSystem? @relation(fields: [relatedSystemId], references: [id])
+  attachments     Attachment[]
+}
+
+model Attachment {
+  id             Int       @id @default(autoincrement())
+  ticketId       Int
+  ticket         Ticket    @relation(fields: [ticketId], references: [id])
+  fileName       String?
+  originalName   String?
+  storagePath    String?
+  storedPath     String?
+  mimeType       String
+  fileSize       Int?
+  sizeBytes      Int?
+  isRemoved      Boolean   @default(false)
+  removalReason  String?
+  removedAt      DateTime?
+  createdAt      DateTime  @default(now())
 }
