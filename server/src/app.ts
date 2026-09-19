@@ -1,3 +1,4 @@
+import authRoutes from "./routes/auth.routes";
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -205,9 +206,9 @@ app.get('/api/tickets', async (req, res) => {
 
     if (search) {
       where.OR = [
-        { ticketNumber: { contains: search, mode: 'insensitive' } },
-        { summary: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
+        { ticketNumber: { contains: search } },
+        { summary: { contains: search } },
+        { description: { contains: search } },
       ];
     }
 
@@ -355,4 +356,6 @@ app.patch('/api/attachments/:id/soft-remove', async (req, res) => {
 });
 
 export { app };
+app.use("/api/auth", authRoutes);
+
 export default app;

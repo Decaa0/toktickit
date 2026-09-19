@@ -1,73 +1,82 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // 1. Seed Categories
-  const categories = [
-    { id: 1, name: 'Account and Access' },
-    { id: 2, name: 'Hardware' },
-    { id: 3, name: 'Software' },
-    { id: 4, name: 'Network' },
-  ];
+  const defaultPassword = 'Password123!';
+  const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
-  for (const cat of categories) {
-    await prisma.category.upsert({
-      where: { name: cat.name },
-      update: {},
-      create: cat,
-    });
-  }
-
-  // 2. Seed Related Systems
-  const relatedSystems = [
-    { name: 'Email' },
-    { name: 'LEB2 App' },
-    { name: 'Grade Submission App' },
-    { name: 'Campus Wi-Fi' },
-    { name: 'VPN' },
-    { name: 'Corporate Laptop' },
-    { name: 'Printer' },
-  ];
-
-  for (const sys of relatedSystems) {
-    await prisma.relatedSystem.upsert({
-      where: { name: sys.name },
-      update: {},
-      create: {
-        name: sys.name,
-      },
-    });
-  }
-
-  // 3. Delete old @example.com users to prevent duplicate display
-  await prisma.requesterUser.deleteMany({
-    where: {
-      email: {
-        contains: 'example.com',
-      },
+  // 1. Seed Lab 3 Auth Users
+  const users = [
+    {
+      email: 'admin@toktickit.local',
+      fullName: 'System Administrator',
+      role: 'ADMINISTRATOR',
+      passwordHash,
+      isActive: true,
+      mustChangePassword: false,
     },
-  });
-
-  // 4. Seed Requesters (4 active, 1 inactive)
-  const requesters = [
-    { name: 'Jennifer Anderson', email: 'jennifer.anderson@kmutt.ac.th', isActive: true },
-    { name: 'David Lee', email: 'david.lee@kmutt.ac.th', isActive: true },
-    { name: 'Sarah Johnson', email: 'sarah.johnson@kmutt.ac.th', isActive: true },
-    { name: 'Michael Brown', email: 'michael.brown@kmutt.ac.th', isActive: true },
-    { name: 'Inactive TestUser', email: 'inactive.user@kmutt.ac.th', isActive: false },
+    {
+      email: 'staff@toktickit.local',
+      fullName: 'IT Staff Support',
+      role: 'IT_STAFF',
+      passwordHash,
+      isActive: true,
+      mustChangePassword: false,
+    },
+    {
+      email: 'requester@toktickit.local',
+      fullName: 'Alice Requester',
+      role: 'REQUESTER',
+      passwordHash,
+      isActive: true,
+      mustChangePassword: false,
+    },
   ];
 
-  for (const req of requesters) {
-    await prisma.requesterUser.upsert({
-      where: { email: req.email },
-      update: {
-        name: req.name,
-        isActive: req.isActive,
-      },
-      create: req,
+  for (const u of users) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: { passwordHash: u.passwordHash, role: u.role, isActive: u.isActive },
+      create: u,
     });
   }
+
+  // 2. Clear and re-seed Categories in the exact test order
+  await prisma.category.deleteMany({});
+  const categories = ['Account and Access', 'Hardware', 'Software', 'Network'];
+  for (const name of categories) {
+    await prisma.category.create({
+      data: { name },
+    });
+  }
+
+  // 3. Seed Lab 2 RequesterUsers
+  const requesterUsers = [
+    { email: 'alice@toktickit.local', fullName: 'Alice Smith', isActive: true },
+    { email: 'bob@toktickit.local', fullName: 'Bob Jones', isActive: true },
+  ];
+
+  for (const ru of requesterUsers) {
+    await prisma.requesterUser.upsert({
+      where: { email: ru.email },
+      update: { fullName: ru.fullName, isActive: ru.isActive },
+      create: ru,
+    });
+  }
+
+  // 4. Seed Related Systems
+  const systems = ['Email System', 'VPN Gateway', 'HR Portal', 'Finance ERP'];
+  for (const name of systems) {
+    await prisma.relatedSystem.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+
+  console.log('Seeded database with clean categories and users.');
 }
 
 main()
