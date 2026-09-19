@@ -1,45 +1,40 @@
-enum Priority {
-  Low
-  Medium
-  High
+generator client {
+  provider = "prisma-client-js"
 }
 
-enum Status {
-  New
-  InProgress
-  Resolved
-  Closed
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  passwordHash       String
+  fullName           String
+  role               String   @default("REQUESTER")
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  createdTickets  Ticket[] @relation("RequesterTickets")
+  assignedTickets Ticket[] @relation("AssignedTickets")
 }
 
 model Ticket {
-  id                Int           @id @default(autoincrement())
-  ticketNumber      String        @unique
-  summary           String
-  description       String
-  requestedPriority Priority      @default(Medium)
-  itPriority        Priority?
-  currentStatus     Status        @default(New)
-  requesterId       Int
-  requester         RequesterUser @relation(fields: [requesterId], references: [id])
-  categoryId        Int
-  category          Category      @relation(fields: [categoryId], references: [id])
-  relatedSystemId   Int
-  relatedSystem     RelatedSystem @relation(fields: [relatedSystemId], references: [id])
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  attachments       Attachment[]
-}
+  id               String   @id @default(uuid())
+  title            String
+  description      String
+  status           String   @default("OPEN")
+  priority         String   @default("MEDIUM")
+  category         String   @default("OTHER")
+  relatedSystemId  String?
+  requesterId      String
+  assignedStaffId  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-model Attachment {
-  id            Int       @id @default(autoincrement())
-  ticketId      Int
-  ticket        Ticket    @relation(fields: [ticketId], references: [id])
-  originalName  String
-  storedPath    String
-  mimeType      String
-  sizeBytes     Int
-  isRemoved     Boolean   @default(false)
-  removalReason String?
-  removedAt     DateTime?
-  createdAt     DateTime  @default(now())
+  requester     User   @relation("RequesterTickets", fields: [requesterId], references: [id])
+  assignedStaff User?  @relation("AssignedTickets", fields: [assignedStaffId], references: [id])
 }

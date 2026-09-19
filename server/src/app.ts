@@ -1,3 +1,4 @@
+import authRoutes from "./routes/auth.routes";
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -355,4 +356,6 @@ app.patch('/api/attachments/:id/soft-remove', async (req, res) => {
 });
 
 export { app };
+app.use("/api/auth", authRoutes);
+
 export default app;
