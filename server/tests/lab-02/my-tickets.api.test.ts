@@ -64,7 +64,7 @@ describe('GET /api/tickets (My Tickets API & Isolation)', () => {
     expect(res.status).toBe(200);
     expect(res.body.items).toHaveLength(0);
   });
-
+  
   it('should support search query filtering', async () => {
     const res = await request(app)
       .get('/api/tickets?search=Network')

@@ -101,8 +101,8 @@ router.get("/", async (req, res) => {
 
   if (search) {
     whereClause.OR = [
-      { ticketNumber: { contains: String(search), mode: "insensitive" } },
-      { summary: { contains: String(search), mode: "insensitive" } },
+      { ticketNumber: { contains: String(search) } },
+      { summary: { contains: String(search) } },
     ];
   }
 

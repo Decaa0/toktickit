@@ -1,45 +1,90 @@
-enum Priority {
-  Low
-  Medium
-  High
+generator client {
+  provider = "prisma-client-js"
 }
 
-enum Status {
-  New
-  InProgress
-  Resolved
-  Closed
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  passwordHash       String
+  fullName           String
+  role               String   @default("REQUESTER")
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  createdTickets  Ticket[] @relation("UserRequesterTickets")
+  assignedTickets Ticket[] @relation("UserAssignedTickets")
+}
+
+model RequesterUser {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  fullName  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets   Ticket[]
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets   Ticket[]
+}
+
+model RelatedSystem {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets   Ticket[]
 }
 
 model Ticket {
-  id                Int           @id @default(autoincrement())
-  ticketNumber      String        @unique
+  id                Int            @id @default(autoincrement())
+  ticketNumber      String         @unique
   summary           String
   description       String
-  requestedPriority Priority      @default(Medium)
-  itPriority        Priority?
-  currentStatus     Status        @default(New)
-  requesterId       Int
-  requester         RequesterUser @relation(fields: [requesterId], references: [id])
+  requestedPriority String         @default("Medium")
+  itPriority        String?
+  currentStatus     String         @default("New")
+  requesterId       Int?
+  requesterUserId   String?
+  assignedStaffId   String?
   categoryId        Int
-  category          Category      @relation(fields: [categoryId], references: [id])
-  relatedSystemId   Int
-  relatedSystem     RelatedSystem @relation(fields: [relatedSystemId], references: [id])
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  attachments       Attachment[]
+  relatedSystemId   Int?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  requester       RequesterUser? @relation(fields: [requesterId], references: [id])
+  userRequester   User?          @relation("UserRequesterTickets", fields: [requesterUserId], references: [id])
+  assignedStaff   User?          @relation("UserAssignedTickets", fields: [assignedStaffId], references: [id])
+  category        Category       @relation(fields: [categoryId], references: [id])
+  relatedSystem   RelatedSystem? @relation(fields: [relatedSystemId], references: [id])
+  attachments     Attachment[]
 }
 
 model Attachment {
-  id            Int       @id @default(autoincrement())
-  ticketId      Int
-  ticket        Ticket    @relation(fields: [ticketId], references: [id])
-  originalName  String
-  storedPath    String
-  mimeType      String
-  sizeBytes     Int
-  isRemoved     Boolean   @default(false)
-  removalReason String?
-  removedAt     DateTime?
-  createdAt     DateTime  @default(now())
+  id             Int       @id @default(autoincrement())
+  ticketId       Int
+  ticket         Ticket    @relation(fields: [ticketId], references: [id])
+  fileName       String?
+  originalName   String?
+  storagePath    String?
+  storedPath     String?
+  mimeType       String
+  fileSize       Int?
+  sizeBytes      Int?
+  isRemoved      Boolean   @default(false)
+  removalReason  String?
+  removedAt      DateTime?
+  createdAt      DateTime  @default(now())
 }
