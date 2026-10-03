@@ -72,7 +72,6 @@ export const App: React.FC = () => {
   const [relatedSystemId, setRelatedSystemId] = useState<number | "">("");
   const [priority, setPriority] = useState("Medium");
   const [files, setFiles] = useState<File[]>([]);
-  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createSuccessMsg, setCreateSuccessMsg] = useState<string | null>(null);
@@ -339,7 +338,6 @@ export const App: React.FC = () => {
       setCategoryId("");
       setRelatedSystemId("");
       setFiles([]);
-      setAttachmentError(null);
 
       setTimeout(() => {
         setCreateSuccessMsg(null);

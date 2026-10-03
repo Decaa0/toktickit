@@ -115,8 +115,4 @@ toktickit/
 │       └── reviewer.md
 ├── .gitignore
 └── README.md
-<<<<<<< HEAD
 ```git checkout lab1-staging
-=======
-```
->>>>>>> feature/lab2-specifications
