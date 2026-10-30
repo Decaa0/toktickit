@@ -1,6 +1,9 @@
 import adminRoutes from "./routes/admin.routes";
 import staffRoutes from "./routes/staff.routes";
 import authRoutes from "./routes/auth.routes";
+import actionsRoutes from "./routes/actions.routes";
+import { authenticateToken, AuthRequest } from "./middleware/auth";
+import dashboardRoutes from "./routes/dashboard.routes";
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -358,5 +361,38 @@ export { app };
 app.use("/api/auth", authRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api", actionsRoutes);
+app.use("/api", dashboardRoutes);
+
+// PATCH /api/tickets/:id/appears-resolved — Requester advisory signal (BR-08).
+// Records the requester's "problem appears resolved" indication WITHOUT changing
+// the Ticket status; only IT Staff may formally resolve.
+app.patch("/api/tickets/:id/appears-resolved", authenticateToken, async (req, res) => {
+  try {
+    const ticketId = Number(req.params.id);
+    if (isNaN(ticketId)) {
+      return res.status(400).json({ error: "Invalid ticket ID" });
+    }
+    const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+    if (!ticket) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+    if (ticket.requesterUserId !== (req as AuthRequest).user?.id) {
+      return res.status(403).json({ error: "Forbidden: you do not own this ticket" });
+    }
+    const { resolutionSummary } = req.body || {};
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        requesterResolved: true,
+        resolutionSummary: resolutionSummary ? String(resolutionSummary).trim() : null,
+      },
+    });
+    return res.status(200).json({ ticket: updated });
+  } catch (error) {
+    console.error("Error recording requester resolution signal:", error);
+    return res.status(500).json({ error: "Failed to record resolution signal" });
+  }
+});
 
 export default app;

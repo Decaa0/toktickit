@@ -7,6 +7,9 @@ node_modules/
 # build output
 dist/
 build/
+# compiled JS emitted next to TS sources (build artifacts, never commit)
+client/src/**/*.js
+client/src/**/*.js.bak
 # prisma
 server/prisma/*.db
 # logs & OS
