@@ -182,3 +182,94 @@
     border-radius: 4px;
     margin-bottom: 1rem;
   }
+/* ---- Lab 4.6: responsive + accessibility ---- */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+.tk-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tk-table-wrap > table {
+  min-width: 640px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.tk-header :focus-visible {
+  outline-color: #FFFFFF;
+}
+
+@media (max-width: 1024px) {
+  .tk-main {
+    padding: 1.5rem 1rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .tk-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem !important;
+  }
+
+  .tk-header-left {
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+    width: 100%;
+  }
+
+  .tk-nav {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .tk-header-user {
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+  }
+
+  .tk-main {
+    padding: 1rem 0.75rem !important;
+  }
+
+  .tk-main input,
+  .tk-main select,
+  .tk-main textarea,
+  .tk-form input,
+  .tk-form select {
+    width: 100% !important;
+    max-width: 100%;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  .tk-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .tk-form button {
+    width: 100%;
+  }
+
+  .tk-table-wrap > table {
+    min-width: 560px;
+  }
+}

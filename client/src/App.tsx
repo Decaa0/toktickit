@@ -75,6 +75,7 @@ export const App: React.FC = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [createSuccessMsg, setCreateSuccessMsg] = useState<string | null>(null);
   const [createErrorMsg, setCreateErrorMsg] = useState<string | null>(null);
 
@@ -107,6 +108,7 @@ export const App: React.FC = () => {
   const [softRemoveId, setSoftRemoveId] = useState<number | null>(null);
   const [removalReason, setRemovalReason] = useState("");
   const [softRemoveError, setSoftRemoveError] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   const handleCheckSystem = async () => {
     try {
@@ -390,7 +392,9 @@ export const App: React.FC = () => {
 
   const handleCreateAdminUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCreatingUser) return;
     setAdminUserMsg(null);
+    setIsCreatingUser(true);
     try {
       await createAdminUser({
         email: newAdminEmail,
@@ -405,6 +409,8 @@ export const App: React.FC = () => {
       loadAdminUsers();
     } catch (err: any) {
       setAdminUserMsg(err.message || "Failed to create user");
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
@@ -605,10 +611,10 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F5F7F6", display: "flex", flexDirection: "column" }}>
-      <header style={{ backgroundColor: "#006B3C", color: "#FFFFFF", padding: "0.75rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "2rem" }}>
+      <header className="tk-header" style={{ backgroundColor: "#006B3C", color: "#FFFFFF", padding: "0.75rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="tk-header-left" style={{ display: "flex", alignItems: "center", gap: "2rem" }}>
           <span style={{ fontWeight: "bold", fontSize: "1.25rem" }}>⏱️ TokTickIT</span>
-          <nav style={{ display: "flex", gap: "0.5rem" }}>
+          <nav className="tk-nav" style={{ display: "flex", gap: "0.5rem" }}>
             <button
               onClick={() => { setActiveTab("my-tickets"); setSelectedTicketId(null); }}
               style={{ background: activeTab === "my-tickets" && !selectedTicketId ? "#0B7A46" : "transparent", border: "none", color: "#FFFFFF", padding: "0.5rem 0.875rem", borderRadius: "4px", cursor: "pointer", fontWeight: activeTab === "my-tickets" ? "bold" : "normal" }}
@@ -639,7 +645,7 @@ export const App: React.FC = () => {
             )}
           </nav>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem", fontSize: "0.875rem" }}>
+        <div className="tk-header-user" style={{ display: "flex", alignItems: "center", gap: "1rem", fontSize: "0.875rem" }}>
           <span>👤 <strong>{currentUser.fullName}</strong> ({currentUser.role})</span>
           <button
             onClick={handleLogout}
@@ -650,7 +656,7 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      <main style={{ flex: 1, padding: "2rem", maxWidth: "1100px", margin: "0 auto", width: "100%" }}>
+      <main className="tk-main" style={{ flex: 1, padding: "2rem", maxWidth: "1100px", margin: "0 auto", width: "100%" }}>
         {selectedTicketId && detailTicket ? (
           <div style={{ backgroundColor: "#FFFFFF", padding: "2rem", borderRadius: "8px", border: "1px solid #E2E8F0", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
             <button
@@ -817,7 +823,8 @@ export const App: React.FC = () => {
             ) : staffTickets.length === 0 ? (
               <p style={{ textAlign: "center", padding: "3rem", color: "#718096" }}>No tickets currently in the staff queue.</p>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
+              <div className="tk-table-wrap">
+<table className="tk-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
                 <thead>
                   <tr style={{ borderBottom: "2px solid #E2E8F0", color: "#4A5568" }}>
                     <th style={{ padding: "0.75rem" }}>Ticket No.</th>
@@ -880,6 +887,7 @@ export const App: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+</div>
             )}
           </div>
         ) : activeTab === "admin-users" ? (
@@ -887,7 +895,7 @@ export const App: React.FC = () => {
             <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#1A2E26", marginBottom: "0.5rem" }}>User Management</h2>
             <p style={{ fontSize: "0.875rem", color: "#718096", marginBottom: "1.5rem" }}>Create users, assign roles, and manage account statuses</p>
 
-            <form onSubmit={handleCreateAdminUser} style={{ backgroundColor: "#F7FAFC", padding: "1rem", borderRadius: "6px", marginBottom: "1.5rem" }}>
+            <form className="tk-form" onSubmit={handleCreateAdminUser} style={{ backgroundColor: "#F7FAFC", padding: "1rem", borderRadius: "6px", marginBottom: "1.5rem" }}>
               <h3 style={{ fontSize: "1rem", fontWeight: "bold", marginBottom: "0.75rem", color: "#2D3748" }}>Onboard New User</h3>
               {adminUserMsg && (
                 <div style={{ padding: "0.5rem", borderRadius: "4px", marginBottom: "0.75rem", fontSize: "0.875rem", backgroundColor: "#EAF6EF", color: "#22543D" }}>
@@ -927,13 +935,15 @@ export const App: React.FC = () => {
               </div>
               <button
                 type="submit"
-                style={{ backgroundColor: "#006B3C", color: "#FFFFFF", padding: "0.5rem 1rem", border: "none", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}
+                disabled={isCreatingUser}
+                style={{ backgroundColor: isCreatingUser ? "#A0AEC0" : "#006B3C", color: "#FFFFFF", padding: "0.5rem 1rem", border: "none", borderRadius: "4px", fontWeight: "bold", cursor: isCreatingUser ? "not-allowed" : "pointer" }}
               >
                 Create User
               </button>
             </form>
 
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
+            <div className="tk-table-wrap">
+<table className="tk-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #E2E8F0", color: "#4A5568" }}>
                   <th style={{ padding: "0.75rem" }}>Name</th>
@@ -966,6 +976,7 @@ export const App: React.FC = () => {
                 ))}
               </tbody>
             </table>
+</div>
           </div>
         ) : activeTab === "create-ticket" ? (
           <div style={{ backgroundColor: "#FFFFFF", padding: "2rem", borderRadius: "8px", border: "1px solid #E2E8F0", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
@@ -1114,7 +1125,8 @@ export const App: React.FC = () => {
                 <p style={{ fontSize: "0.875rem" }}>Try clearing filters or create a new ticket.</p>
               </div>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
+              <div className="tk-table-wrap">
+<table className="tk-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
                 <thead>
                   <tr style={{ borderBottom: "2px solid #E2E8F0", color: "#4A5568" }}>
                     <th style={{ padding: "0.75rem" }}>Ticket No.</th>
@@ -1153,6 +1165,7 @@ export const App: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+</div>
             )}
 
             {totalPages > 1 && (
