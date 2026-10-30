@@ -62,6 +62,8 @@ model Ticket {
   assignedStaffId   String?
   categoryId        Int
   relatedSystemId   Int?
+  requesterResolved Boolean        @default(false)
+  resolutionSummary String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
