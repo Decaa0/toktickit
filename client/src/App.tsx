@@ -25,6 +25,7 @@ import {
   updateAdminUser,
   checkSystem,
 } from "./api";
+import ActionsTaken from "./ActionsTaken";
 
 export const App: React.FC = () => {
   const [systemOnline, setSystemOnline] = useState<boolean | null>(null);
@@ -774,6 +775,8 @@ export const App: React.FC = () => {
                   </button>
                 </div>
               )}
+
+              <ActionsTaken ticketId={detailTicket.id} canEdit={isStaffOrAdmin} />
             </div>
           </div>
         ) : activeTab === "staff-queue" ? (
