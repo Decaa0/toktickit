@@ -17,7 +17,7 @@ app.use(cors());
 app.use(express.json());
 
 // Setup uploads directory
-const uploadDir = path.join(__dirname, '../uploads');
+const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
