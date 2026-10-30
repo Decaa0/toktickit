@@ -464,3 +464,51 @@ export const softRemoveAttachment = async (
   }
   return res.json();
 };
+
+// ---------------- DASHBOARD API ----------------
+export interface TicketSummary {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: string;
+  itPriority?: string | null;
+  requestedPriority?: string;
+  updatedAt: string;
+}
+
+export interface RequesterDashboard {
+  totalOpen: number;
+  waitingForRequester: number;
+  recentlyUpdated: { count: number; items: TicketSummary[] };
+  recentlyResolved: { count: number; items: TicketSummary[] };
+}
+
+export interface StaffDashboard {
+  unassigned: number;
+  ownedByMe: number;
+  byStatus: Record<string, number>;
+  byPriority: Record<string, number>;
+  recentlyUpdated: { count: number; items: TicketSummary[] };
+}
+
+export const fetchRequesterDashboard = async (): Promise<RequesterDashboard> => {
+  const res = await fetch(`${API_BASE_URL}/dashboard/requester`, {
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to load requester dashboard');
+  }
+  return res.json();
+};
+
+export const fetchStaffDashboard = async (): Promise<StaffDashboard> => {
+  const res = await fetch(`${API_BASE_URL}/dashboard/staff`, {
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to load staff dashboard');
+  }
+  return res.json();
+};
