@@ -181,6 +181,82 @@ export const updateTicketStatusApi = async (
   return res.json();
 };
 
+// ---------------- ACTIONS TAKEN API ----------------
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  actionDateTime: string;
+  description: string;
+  result: string | null;
+  performedByUserId: string | number;
+  performedByName: string;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActionTakenInput {
+  actionDateTime?: string;
+  description?: string;
+  result?: string;
+  followUpRequired?: boolean;
+  followUpNote?: string;
+  attachmentNotes?: string;
+}
+
+export const fetchTicketActions = async (ticketId: number): Promise<ActionTaken[]> => {
+  const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}/actions`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to load actions taken');
+  }
+  const data = await res.json();
+  return data.items || [];
+};
+
+export const createTicketAction = async (
+  ticketId: number,
+  data: ActionTakenInput
+): Promise<ActionTaken> => {
+  const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}/actions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to create action');
+  }
+  return res.json();
+};
+
+export const updateTicketAction = async (
+  ticketId: number,
+  actionId: number,
+  data: ActionTakenInput
+): Promise<ActionTaken> => {
+  const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}/actions/${actionId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to update action');
+  }
+  return res.json();
+};
+
 // ---------------- ADMIN API ----------------
 export const fetchAdminUsers = async (params?: { role?: string; isActive?: string; search?: string }) => {
   const query = new URLSearchParams();
@@ -385,6 +461,54 @@ export const softRemoveAttachment = async (
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.error || 'Failed to remove attachment');
+  }
+  return res.json();
+};
+
+// ---------------- DASHBOARD API ----------------
+export interface TicketSummary {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: string;
+  itPriority?: string | null;
+  requestedPriority?: string;
+  updatedAt: string;
+}
+
+export interface RequesterDashboard {
+  totalOpen: number;
+  waitingForRequester: number;
+  recentlyUpdated: { count: number; items: TicketSummary[] };
+  recentlyResolved: { count: number; items: TicketSummary[] };
+}
+
+export interface StaffDashboard {
+  unassigned: number;
+  ownedByMe: number;
+  byStatus: Record<string, number>;
+  byPriority: Record<string, number>;
+  recentlyUpdated: { count: number; items: TicketSummary[] };
+}
+
+export const fetchRequesterDashboard = async (): Promise<RequesterDashboard> => {
+  const res = await fetch(`${API_BASE_URL}/dashboard/requester`, {
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to load requester dashboard');
+  }
+  return res.json();
+};
+
+export const fetchStaffDashboard = async (): Promise<StaffDashboard> => {
+  const res = await fetch(`${API_BASE_URL}/dashboard/staff`, {
+    headers: { ...getAuthHeaders() },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to load staff dashboard');
   }
   return res.json();
 };

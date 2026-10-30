@@ -84,7 +84,7 @@ describe("IT Staff Ticket Queue & Workflow (Issue 3.3)", () => {
     expect(Array.isArray(res.body.items)).toBe(true);
   });
 
-  it("PATCH /api/staff/tickets/:id/assign claims and transitions New -> InProgress", async () => {
+  it("PATCH /api/staff/tickets/:id/assign claims and transitions New -> Open", async () => {
     const res = await request(app)
       .patch(`/api/staff/tickets/${testTicket.id}/assign`)
       .set("Authorization", `Bearer ${staffToken}`)
@@ -92,7 +92,7 @@ describe("IT Staff Ticket Queue & Workflow (Issue 3.3)", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ticket.assignedStaffId).toBe(staffUser.id);
-    expect(res.body.ticket.currentStatus).toBe("InProgress");
+    expect(res.body.ticket.currentStatus).toBe("Open");
   });
 
   it("PATCH /api/staff/tickets/:id/status updates status to Resolved", async () => {

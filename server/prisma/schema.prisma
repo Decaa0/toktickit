@@ -20,6 +20,7 @@ model User {
 
   createdTickets  Ticket[] @relation("UserRequesterTickets")
   assignedTickets Ticket[] @relation("UserAssignedTickets")
+  performedActions ActionTaken[] @relation("UserPerformedActions")
 }
 
 model RequesterUser {
@@ -61,6 +62,8 @@ model Ticket {
   assignedStaffId   String?
   categoryId        Int
   relatedSystemId   Int?
+  requesterResolved Boolean        @default(false)
+  resolutionSummary String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
@@ -70,6 +73,7 @@ model Ticket {
   category        Category       @relation(fields: [categoryId], references: [id])
   relatedSystem   RelatedSystem? @relation(fields: [relatedSystemId], references: [id])
   attachments     Attachment[]
+  actions         ActionTaken[]
 }
 
 model Attachment {
@@ -87,4 +91,24 @@ model Attachment {
   removalReason  String?
   removedAt      DateTime?
   createdAt      DateTime  @default(now())
+}
+
+model ActionTaken {
+  id                Int      @id @default(autoincrement())
+  ticketId          Int
+  actionDateTime    DateTime @default(now())
+  description       String
+  result            String?
+  performedByUserId String
+  followUpRequired  Boolean  @default(false)
+  followUpNote      String?
+  attachmentNotes   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  ticket      Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  performedBy User   @relation("UserPerformedActions", fields: [performedByUserId], references: [id])
+
+  @@index([ticketId])
+  @@index([performedByUserId])
 }

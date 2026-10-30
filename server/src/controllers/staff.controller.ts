@@ -5,10 +5,14 @@ import { AuthRequest } from "../middleware/auth";
 const prisma = new PrismaClient();
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  New: ["InProgress"],
-  InProgress: ["Resolved"],
-  Resolved: ["Closed", "InProgress"],
-  Closed: [],
+  "New": ["Open", "Cancelled"],
+  "Open": ["In Progress", "Waiting for Requester", "Resolved", "Cancelled"],
+  "In Progress": ["Waiting for Requester", "Resolved", "Cancelled"],
+  "Waiting for Requester": ["In Progress", "Resolved", "Cancelled"],
+  "Resolved": ["Closed", "Reopened"],
+  "Reopened": ["In Progress", "Waiting for Requester", "Resolved", "Cancelled"],
+  "Closed": ["Reopened"],
+  "Cancelled": [],
 };
 
 export async function getStaffTicketQueue(req: AuthRequest, res: Response) {
@@ -96,7 +100,7 @@ export async function assignTicket(req: AuthRequest, res: Response) {
 
     const updateData: any = { assignedStaffId: targetStaffId };
     if (ticket.currentStatus === "New") {
-      updateData.currentStatus = "InProgress";
+      updateData.currentStatus = "Open";
     }
 
     const updated = await prisma.ticket.update({
@@ -119,7 +123,7 @@ export async function assignTicket(req: AuthRequest, res: Response) {
 export async function updateTicketStatus(req: AuthRequest, res: Response) {
   try {
     const ticketId = Number(req.params.id);
-    const { status, itPriority } = req.body;
+    const { status, itPriority, expectedUpdatedAt } = req.body;
 
     if (isNaN(ticketId)) {
       return res.status(400).json({ error: "Invalid ticket ID" });
@@ -134,6 +138,19 @@ export async function updateTicketStatus(req: AuthRequest, res: Response) {
       return res.status(404).json({ error: "Ticket not found" });
     }
 
+    // Optimistic concurrency (BR-11): reject stale updates so one user does not
+    // silently overwrite another user's recent workflow change.
+    if (expectedUpdatedAt) {
+      const expected = new Date(expectedUpdatedAt).getTime();
+      const current = new Date(ticket.updatedAt).getTime();
+      if (Math.abs(expected - current) > 1000) {
+        return res.status(409).json({
+          error: "Conflict: ticket was modified by someone else",
+          currentUpdatedAt: ticket.updatedAt,
+        });
+      }
+    }
+
     const allowedNext = VALID_TRANSITIONS[ticket.currentStatus] || [];
     if (!allowedNext.includes(status)) {
       return res.status(400).json({
@@ -146,6 +163,11 @@ export async function updateTicketStatus(req: AuthRequest, res: Response) {
 
     if (itPriority) {
       updateData.itPriority = itPriority;
+    }
+
+    // Formal resolution clears the advisory "appears resolved" flag.
+    if (status === "Resolved" || status === "Closed") {
+      updateData.requesterResolved = false;
     }
 
     const updated = await prisma.ticket.update({
