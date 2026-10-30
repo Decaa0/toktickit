@@ -1,62 +1,70 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
-body{font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:11pt;line-height:1.45;color:#1a1a1a;margin:40px;}
-h1{color:#0B7A46;font-size:20pt;border-bottom:3px solid #0B7A46;padding-bottom:6px;}
-h2{color:#0B7A46;font-size:14pt;margin-top:22px;border-bottom:1px solid #cbd5e0;padding-bottom:3px;}
-code{background:#f1f5f4;padding:1px 4px;border-radius:3px;font-size:10pt;}
-pre{background:#f1f5f4;padding:8px 10px;border-radius:5px;font-size:9.5pt;overflow:auto;}
-table{border-collapse:collapse;width:100%;font-size:10pt;margin:6px 0;}
-th,td{border:1px solid #cbd5e0;padding:5px 8px;text-align:left;}
-th{background:#0B7A46;color:#fff;}
-a{color:#0B6;}
-.note{background:#FFF8E1;border-left:4px solid #F6AD55;padding:6px 10px;font-size:10pt;}
-.ok{color:#0B7A46;font-weight:bold;}
+body{font-family:"Times New Roman",Georgia,serif;font-size:12pt;line-height:1.5;color:#000;margin:50px;}
+h1{font-size:16pt;font-weight:bold;margin-bottom:4px;}
+h2{font-size:13pt;font-weight:bold;margin-top:20px;margin-bottom:6px;}
+p{margin:6px 0;}
+table{border-collapse:collapse;width:100%;font-size:11pt;margin:8px 0;}
+th,td{border:1px solid #000;padding:4px 7px;text-align:left;vertical-align:top;}
+th{font-weight:bold;}
+code{font-family:"Courier New",monospace;font-size:10.5pt;}
+pre{font-family:"Courier New",monospace;font-size:10.5pt;border:1px solid #999;padding:6px 8px;white-space:pre-wrap;}
+.sub{font-size:11pt;color:#333;}
+.ph{color:#555;}
 </style></head><body>
 
-<h1>TokTickIT — Lab 4 Submission</h1>
-<p><b>Student:</b> Yoswat Amornvitkijvecha (67070503494) &nbsp;|&nbsp; <b>GitHub:</b> Decaa0 &nbsp;|&nbsp;
-<b>Repository:</b> https://github.com/Decaa0/toktickit &nbsp;|&nbsp; <b>Peer Reviewer:</b> Punnapob Wirojwongchai (SaintCrois)</p>
-<p><b>Verification (on <code>main</code>):</b> <span class="ok">server 46/46 tests</span>, <span class="ok">client 18/18 tests</span>, <code>tsc --noEmit</code> clean, <code>vite build</code> OK.</p>
+<h1>Lab 4: TokTickIT — Actions Taken, Dashboards, and Final Regression</h1>
+<p class="sub">Student: Yoswat Amornvitkijvecha — 67070503494 — [Section] / Semester: 1/2026</p>
 
-<h2>Answer Part 1 — Git Use with Engineering Workflow (10)</h2>
-<p>Branch flow: each issue on a <code>feature/4.x-*</code> branch → PR into <code>lab4-staging</code> → <code>lab4-staging</code> merged into <code>main</code>. Every feature PR was reviewed and approved by the peer (SaintCrois) before merge.</p>
-<table><tr><th>PR</th><th>Issue</th><th>Branch</th><th>Reviewer</th></tr>
-<tr><td>#56</td><td>4.1 Spec</td><td>feature/4.1-sprint4-specs</td><td>Approved — SaintCrois</td></tr>
-<tr><td>#57</td><td>4.2 Actions Taken backend</td><td>feature/4.2-actions-taken-foundation</td><td>Approved — SaintCrois</td></tr>
-<tr><td>#58</td><td>4.4 Ticket workflow</td><td>feature/4.4-ticket-workflow</td><td>Approved — SaintCrois</td></tr>
-<tr><td>#59</td><td>4.5 Dashboards backend</td><td>feature/4.5-role-dashboards</td><td>Approved — SaintCrois</td></tr>
-<tr><td>#60</td><td>4.3 Actions Taken UI</td><td>feature/4.3-actions-taken-ui</td><td>Approved — SaintCrois</td></tr>
-<tr><td>#61</td><td>4.6 Responsive + hardening</td><td>feature/4.6-hardening-responsive</td><td>Approved — SaintCrois</td></tr>
-<tr><td>#62/#63/#65</td><td>integration / dashboard UI / main</td><td>→ lab4-staging → main</td><td>Merged</td></tr></table>
-<p>Issues #44–#49 (GitHub Issues) cover specification, Actions Taken, workflow, dashboards, UI, and hardening. Rendered: <code>docs/lab-04/reviewer.md</code>. README, <code>.gitignore</code>, and the repository directory structure are current on <code>main</code>.</p>
+<h2>Answer Part 1: Git Use with Engineering Workflow</h2>
+<p>GitHub Repository URL: https://github.com/Decaa0/toktickit</p>
+<p>Every feature was isolated in a dedicated branch, peer-reviewed via pull request, approved by the peer reviewer (Punnapob Wirojwongchai — SaintCrois), and merged into <code>lab4-staging</code> before final integration into <code>main</code>.</p>
+<table>
+<tr><th>Issue</th><th>Scope</th><th>Pull Request</th></tr>
+<tr><td>#44</td><td>Issue 4.1: Sprint 4 Engineering Contract &amp; Specifications</td><td>#56 — feature/4.1-sprint4-specs (Approved)</td></tr>
+<tr><td>#45</td><td>Issue 4.2: Actions Taken foundation (model, migration, seed, API)</td><td>#57 — feature/4.2-actions-taken-foundation (Approved)</td></tr>
+<tr><td>#47</td><td>Issue 4.4: Ticket workflow &amp; resolution gate</td><td>#58 — feature/4.4-ticket-workflow (Approved)</td></tr>
+<tr><td>#48</td><td>Issue 4.5: Role dashboards (Requester &amp; IT Staff)</td><td>#59 — feature/4.5-role-dashboards (Approved)</td></tr>
+<tr><td>#46</td><td>Issue 4.3: Actions Taken UI</td><td>#60 — feature/4.3-actions-taken-ui (Approved)</td></tr>
+<tr><td>#49</td><td>Issue 4.6: Responsive fix &amp; final hardening</td><td>#61 — feature/4.6-hardening-responsive (Approved)</td></tr>
+</table>
+<p class="ph">[Git History Screenshot — feature branches → lab4-staging → main]</p>
+<p class="ph">[Repository Directory Structure Screenshot]</p>
+<p>Rendered reviewer record: <code>docs/lab-04/reviewer.md</code>. README, <code>.gitignore</code>, and the repository structure are current on <code>main</code>.</p>
 
-<h2>Answer Part 2 — Spec DD (5)</h2>
-<p>Rendered: <code>docs/lab-04/specification.md</code>. Contains numbered Functional Requirements (FR-01+), Business Rules (BR-01+ incl. the Actions Taken rules and the full Ticket status-transition matrix BR-09), the IT-Staff resolution gate (BR-08), dashboard calculation rules (BR-10), two justified data-design decisions, acceptance criteria (AC-01+), and the Product Definition of Done. The spec was committed in PR #56 before the implementation PRs, evidencing spec-before-code.</p>
+<h2>Answer Part 2: Spec DD</h2>
+<p>Rendered: <code>docs/lab-04/specification.md</code>. Includes numbered Functional Requirements (FR-01+), Business Rules (BR-01+), the complete Ticket status-transition matrix (BR-09), the IT-Staff resolution gate (BR-08), dashboard calculation rules (BR-10), two justified database-design decisions, Acceptance Criteria (AC-01+), and the Product Definition of Done. The specification was committed (PR #56) before the implementation pull requests, evidencing specification-before-code.</p>
 
-<h2>Answer Part 3 — Test DD and Traceability (10)</h2>
-<p>Rendered: <code>docs/lab-04/tests.md</code> (traceability matrix mapping AC → test file). Passing suites on <code>main</code>:</p>
-<pre>server:  Test Files 13 passed (13)   Tests 46 passed (46)
-client:  Test Files 10 passed (10)   Tests 18 passed | 2 todo (20)
-tsc --noEmit: clean      vite build: OK</pre>
-<p>Test files: <code>server/tests/lab-04/{actions-taken,ticket-workflow,requester-dashboard,staff-dashboard}.api.test.ts</code>; <code>client/tests/lab-04/{ActionsTaken,RequesterDashboard,StaffDashboard,Responsive}.test.tsx</code>.</p>
+<h2>Answer Part 3: Test DD and Traceability</h2>
+<p>Rendered: <code>docs/lab-04/tests.md</code> — planned tests and a traceability matrix mapping each Acceptance Criterion to its automated test file. Passing suites on <code>main</code>:</p>
+<pre>server:  Test Files 13 passed (13)    Tests 46 passed (46)
+client:  Test Files 10 passed (10)    Tests 18 passed | 2 todo (20)
+tsc --noEmit: clean        vite build: OK</pre>
+<p>Test files: <code>server/tests/lab-04/actions-taken.api.test.ts</code>, <code>ticket-workflow.api.test.ts</code>, <code>requester-dashboard.api.test.ts</code>, <code>staff-dashboard.api.test.ts</code>; <code>client/tests/lab-04/ActionsTaken.test.tsx</code>, <code>RequesterDashboard.test.tsx</code>, <code>StaffDashboard.test.tsx</code>, <code>Responsive.test.tsx</code>.</p>
+<p class="ph">[Passing Test Output Screenshot — server and client suites]</p>
 
-<h2>Answer Part 4 — AI Use with Reflection (5)</h2>
-<p>Rendered: <code>docs/lab-04/ai-use.md</code> — tools named, 8 key engineering prompts with verifications, and a brief reflection.</p>
+<h2>Answer Part 4: AI Use &amp; Reflection</h2>
+<p>Rendered: <code>docs/lab-04/ai-use.md</code> — the LLM tools used, 8 selected key engineering prompts with their verifications, and a brief reflection on specification-agent and coding-agent use.</p>
 
-<h2>Answer Part 5 — Working IT Staff Dashboard UI (5)</h2>
-<p>Backend: <code>GET /api/dashboard/staff</code> (unassigned, owned-by-me, by-status, by-priority, recently-updated — all computed server-side, verified in <code>staff-dashboard.api.test.ts</code>). Frontend: <code>client/src/Dashboard.tsx</code>, reachable from the <b>Dashboard</b> nav item; metric cards drill through to the Staff Queue. <span class="note">[Insert screenshot: Staff Dashboard — desktop]</span></p>
+<h2>Answer Part 5: Working IT Staff Dashboard UI</h2>
+<p>Backend endpoint <code>GET /api/dashboard/staff</code> returns unassigned, owned-by-me, by-status, by-priority, and recently-updated metrics computed from authoritative data (verified in <code>staff-dashboard.api.test.ts</code>). The UI (<code>client/src/Dashboard.tsx</code>) is reached from the Dashboard navigation item; metric cards drill through to the Staff Queue.</p>
+<p class="ph">[Screenshot: IT Staff Dashboard — metrics and recent tickets]</p>
 
-<h2>Answer Part 6 — Working Actions Taken UI (10)</h2>
-<p>Backend: <code>GET/POST/PATCH /api/tickets/:id/actions</code> with role enforcement (staff/admin write, requester read-own) and follow-up-note validation. Frontend: <code>client/src/ActionsTaken.tsx</code> on the Ticket Detail screen — list (oldest-first), create and edit forms, follow-up note required when flagged, duplicate-submit guard, requester read-only. <span class="note">[Insert screenshot: Ticket Detail with multiple Actions Taken + create form]</span></p>
+<h2>Answer Part 6: Working Actions Taken UI</h2>
+<p>Endpoints <code>GET/POST/PATCH /api/tickets/:id/actions</code> enforce authorization on the backend (IT Staff/Administrator write; Requester reads only owned tickets) and require a follow-up note when follow-up is flagged. The UI (<code>client/src/ActionsTaken.tsx</code>) on the Ticket Detail screen supports a list (oldest-first), create and edit modes, a duplicate-submit guard, and read-only display for Requesters.</p>
+<p class="ph">[Screenshot: Ticket Detail with multiple Actions Taken and the create form]</p>
 
-<h2>Answer Part 7 — Working Ticket Workflow (5)</h2>
-<p>Full 8-status transition matrix (New, Open, In Progress, Waiting for Requester, Resolved, Closed, Reopened, Cancelled) enforced on the backend; illegal transitions → 400; stale updates → 409; a Requester "appears resolved" signal is advisory and never sets Resolved. Append-only, stable ordering. Verified in <code>ticket-workflow.api.test.ts</code>. <span class="note">[Insert screenshot: status control showing only permitted transitions]</span></p>
+<h2>Answer Part 7: Working Ticket Workflow</h2>
+<p>The backend enforces the full eight-status transition matrix (New, Open, In Progress, Waiting for Requester, Resolved, Closed, Reopened, Cancelled). Illegal transitions return 400; stale updates return 409; a Requester "appears resolved" indication is advisory and never sets the ticket to Resolved. Verified in <code>ticket-workflow.api.test.ts</code>.</p>
+<p class="ph">[Screenshot: status control showing only permitted transitions]</p>
 
-<h2>Answer Part 8 — Requester Dashboard & Final Regression (5)</h2>
-<p>Requester dashboard (<code>GET /api/dashboard/requester</code>) is owner-scoped: total open, waiting-for-me, recently updated, recently resolved — ownership enforced server-side (verified in <code>requester-dashboard.api.test.ts</code>). Regression: all Lab 1–3 suites pass on <code>main</code>. <span class="note">[Insert screenshots: Requester Dashboard + representative regression screens]</span></p>
+<h2>Answer Part 8: Working Requester Dashboard and Final Regression</h2>
+<p>The Requester dashboard (<code>GET /api/dashboard/requester</code>) is owner-scoped: total open, waiting-for-me, recently updated, and recently resolved — ownership enforced on the backend (verified in <code>requester-dashboard.api.test.ts</code>). All Lab 1–3 suites continue to pass on <code>main</code>, confirming preserved authentication, My Tickets, Ticket Detail, attachments, comments, IT Staff functions, and administrator user management.</p>
+<p class="ph">[Screenshot: Requester Dashboard and representative regression screens]</p>
 
-<h2>Answer Part 9 — Zen Green UI, Responsive, Accessibility, Final Polish (5)</h2>
-<p>Rendered: <code>docs/lab-04/ui-spec.md</code>. Root-cause fix: the app previously ran a stale compiled <code>App.js</code>, so UI edits never shipped; now <code>main.tsx</code> and tests load <code>App.tsx</code>, <code>tsconfig noEmit:true</code> prevents re-emitting <code>.js</code>. Responsive CSS adds ≤768px / ≤1024px breakpoints, table wrappers, full-width inputs (no iOS zoom), wrapping nav, and <code>:focus-visible</code> outlines; no horizontal page scroll. <span class="note">[Insert screenshots: desktop / tablet / mobile for major Lab 4 screens]</span></p>
+<h2>Answer Part 9: Zen Green UI and Responsive Evidence</h2>
+<p>Rendered: <code>docs/lab-04/ui-spec.md</code>. Root-cause fix for the mobile defect: the application previously served a stale compiled <code>App.js</code>, so edits to <code>App.tsx</code> never shipped; <code>main.tsx</code> and the tests now load <code>App.tsx</code>, and <code>tsconfig noEmit:true</code> prevents re-emitting the compiled files. Responsive styles add breakpoints at 768px and 1024px, horizontally scrollable table wrappers, full-width inputs (16px to prevent iOS zoom), a wrapping navigation bar, and visible <code>:focus-visible</code> outlines; no horizontal page scroll remains.</p>
+<p class="ph">[Screenshots: desktop, tablet, and mobile views of the major Lab 4 screens]</p>
 
-<p style="margin-top:24px;font-size:9pt;color:#718096;">The submitted repository and final <code>main</code> branch remain the source of truth. Screenshot placeholders marked above should be filled from the running app before final submission.</p>
+<p style="margin-top:20px;font-size:10pt;color:#555;">The submitted repository and final <code>main</code> branch remain the source of truth. Screenshot placeholders above are to be filled from the running application before final submission.</p>
 </body></html>
