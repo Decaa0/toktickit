@@ -1,6 +1,7 @@
 import adminRoutes from "./routes/admin.routes";
 import staffRoutes from "./routes/staff.routes";
 import authRoutes from "./routes/auth.routes";
+import actionsRoutes from "./routes/actions.routes";
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -358,5 +359,6 @@ export { app };
 app.use("/api/auth", authRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api", actionsRoutes);
 
 export default app;
