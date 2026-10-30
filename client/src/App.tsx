@@ -26,6 +26,7 @@ import {
   checkSystem,
 } from "./api";
 import ActionsTaken from "./ActionsTaken";
+import Dashboard from "./Dashboard";
 
 export const App: React.FC = () => {
   const [systemOnline, setSystemOnline] = useState<boolean | null>(null);
@@ -61,7 +62,7 @@ export const App: React.FC = () => {
   const [changePwError, setChangePwError] = useState<string | null>(null);
   const [isChangingPw, setIsChangingPw] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket" | "staff-queue" | "admin-users">("my-tickets");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "my-tickets" | "create-ticket" | "staff-queue" | "admin-users">("my-tickets");
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -616,6 +617,12 @@ export const App: React.FC = () => {
           <span style={{ fontWeight: "bold", fontSize: "1.25rem" }}>⏱️ TokTickIT</span>
           <nav className="tk-nav" style={{ display: "flex", gap: "0.5rem" }}>
             <button
+              onClick={() => { setActiveTab("dashboard"); setSelectedTicketId(null); }}
+              style={{ background: activeTab === "dashboard" && !selectedTicketId ? "#0B7A46" : "transparent", border: "none", color: "#FFFFFF", padding: "0.5rem 0.875rem", borderRadius: "4px", cursor: "pointer", fontWeight: activeTab === "dashboard" ? "bold" : "normal" }}
+            >
+              📊 Dashboard
+            </button>
+            <button
               onClick={() => { setActiveTab("my-tickets"); setSelectedTicketId(null); }}
               style={{ background: activeTab === "my-tickets" && !selectedTicketId ? "#0B7A46" : "transparent", border: "none", color: "#FFFFFF", padding: "0.5rem 0.875rem", borderRadius: "4px", cursor: "pointer", fontWeight: activeTab === "my-tickets" ? "bold" : "normal" }}
             >
@@ -785,6 +792,19 @@ export const App: React.FC = () => {
               <ActionsTaken ticketId={detailTicket.id} canEdit={isStaffOrAdmin} />
             </div>
           </div>
+        ) : activeTab === "dashboard" ? (
+          <Dashboard
+            role={currentUser.role}
+            onOpenTicket={(id) => openTicketDetail(id)}
+            onDrill={(target) => {
+              if (target === "unassigned" || target === "mine") {
+                setActiveTab("staff-queue");
+              } else {
+                setActiveTab("my-tickets");
+              }
+              setSelectedTicketId(null);
+            }}
+          />
         ) : activeTab === "staff-queue" ? (
           <div style={{ backgroundColor: "#FFFFFF", padding: "2rem", borderRadius: "8px", border: "1px solid #E2E8F0", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
