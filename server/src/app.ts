@@ -3,6 +3,7 @@ import staffRoutes from "./routes/staff.routes";
 import authRoutes from "./routes/auth.routes";
 import actionsRoutes from "./routes/actions.routes";
 import { authenticateToken, AuthRequest } from "./middleware/auth";
+import dashboardRoutes from "./routes/dashboard.routes";
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -361,6 +362,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api", actionsRoutes);
+app.use("/api", dashboardRoutes);
 
 // PATCH /api/tickets/:id/appears-resolved — Requester advisory signal (BR-08).
 // Records the requester's "problem appears resolved" indication WITHOUT changing
