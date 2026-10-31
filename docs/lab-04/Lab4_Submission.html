@@ -57,6 +57,24 @@ tsc --noEmit: clean        vite build: OK</pre>
 
 <h2>Answer Part 7: Working Ticket Workflow</h2>
 <p>The backend enforces the full eight-status transition matrix (New, Open, In Progress, Waiting for Requester, Resolved, Closed, Reopened, Cancelled). Illegal transitions return 400; stale updates return 409; a Requester "appears resolved" indication is advisory and never sets the ticket to Resolved. Verified in <code>ticket-workflow.api.test.ts</code>. Status controls in the Ticket Queue (above) expose only permitted transitions.</p>
+<p>Code capture — the authoritative transition matrix (<code>server/src/controllers/staff.controller.ts</code>):</p>
+<pre>const VALID_TRANSITIONS: Record&lt;string, string[]&gt; = {
+  "New": ["Open", "Cancelled"],
+  "Open": ["In Progress", "Waiting for Requester", "Resolved", "Cancelled"],
+  "In Progress": ["Waiting for Requester", "Resolved", "Cancelled"],
+  "Waiting for Requester": ["In Progress", "Resolved", "Cancelled"],
+  "Resolved": ["Closed", "Reopened"],
+  "Reopened": ["In Progress", "Waiting for Requester", "Resolved", "Cancelled"],
+  "Closed": ["Reopened"],
+  "Cancelled": [],
+};</pre>
+<p>Code capture — optimistic-concurrency guard returning HTTP 409 on a stale update:</p>
+<pre>if (expectedUpdatedAt &amp;&amp; ticket.updatedAt > new Date(expectedUpdatedAt)) {
+  return res.status(409).json({
+    error: "Conflict: ticket was modified by someone else",
+    currentUpdatedAt: ticket.updatedAt,
+  });
+}</pre>
 
 <h2>Answer Part 8: Working Requester Dashboard and Final Regression</h2>
 <p>The Requester dashboard (<code>GET /api/dashboard/requester</code>) is owner-scoped: total open, waiting-for-me, recently updated, and recently resolved — ownership enforced on the backend (verified in <code>requester-dashboard.api.test.ts</code>). All Lab 1–3 suites continue to pass on <code>main</code>, confirming preserved authentication, My Tickets, Ticket Detail, attachments, IT Staff functions, and administrator user management.</p>
